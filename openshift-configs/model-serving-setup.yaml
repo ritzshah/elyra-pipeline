@@ -180,7 +180,7 @@ metadata:
   labels:
     modelmesh-service: modelmesh-serving
 type: Opaque
-data:
+stringData:
   localMinIO: |
     {
       "type": "s3",

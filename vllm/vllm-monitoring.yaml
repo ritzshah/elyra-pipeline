@@ -16,10 +16,24 @@ data:
       metrics_path: /metrics
       scrape_interval: 10s
       
-    - job_name: 'gpu-metrics'
-      static_configs:
-      - targets: ['gpu-exporter:9400']
-      scrape_interval: 15s
+    - job_name: 'nvidia-dcgm-metrics'
+      kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+          - nvidia-gpu-operator
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: keep
+        regex: nvidia-dcgm-exporter
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        target_label: __address__
+        regex: (.+)
+        replacement: ${1}:9400
       
     rule_files:
     - "/etc/prometheus/vllm_rules.yml"
@@ -190,7 +204,7 @@ data:
             "type": "graph",
             "targets": [
               {
-                "expr": "nvidia_gpu_utilization_gpu",
+                "expr": "DCGM_FI_DEV_GPU_UTIL",
                 "legendFormat": "GPU {{gpu}} Utilization %"
               }
             ],
@@ -209,17 +223,17 @@ data:
             "type": "graph",
             "targets": [
               {
-                "expr": "nvidia_gpu_memory_used_bytes / 1024 / 1024 / 1024",
-                "legendFormat": "GPU {{gpu}} Memory Used (GB)"
+                "expr": "DCGM_FI_DEV_FB_USED / 1024 / 1024",
+                "legendFormat": "GPU {{gpu}} Memory Used (MB)"
               },
               {
-                "expr": "nvidia_gpu_memory_total_bytes / 1024 / 1024 / 1024",
-                "legendFormat": "GPU {{gpu}} Memory Total (GB)"
+                "expr": "DCGM_FI_DEV_FB_TOTAL / 1024 / 1024", 
+                "legendFormat": "GPU {{gpu}} Memory Total (MB)"
               }
             ],
             "yAxes": [
               {
-                "label": "Gigabytes"
+                "label": "Megabytes"
               }
             ],
             "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
@@ -313,73 +327,8 @@ data:
         "refresh": "10s"
       }
     }
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: gpu-exporter
-  namespace: elyra-demo-project
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: gpu-exporter
-  template:
-    metadata:
-      labels:
-        app: gpu-exporter
-    spec:
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: nvidia.com/gpu
-                operator: Exists
-      containers:
-      - name: gpu-exporter
-        image: mindprince/nvidia_gpu_prometheus_exporter:0.1
-        ports:
-        - containerPort: 9400
-          name: metrics
-        securityContext:
-          privileged: true
-        volumeMounts:
-        - name: proc
-          mountPath: /host/proc
-          readOnly: true
-        - name: sys
-          mountPath: /host/sys
-          readOnly: true
-        env:
-        - name: NVIDIA_VISIBLE_DEVICES
-          value: "all"
-      volumes:
-      - name: proc
-        hostPath:
-          path: /proc
-      - name: sys
-        hostPath:
-          path: /sys
-      tolerations:
-      - key: "nvidia.com/gpu"
-        operator: "Exists"
-        effect: "NoSchedule"
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: gpu-exporter
-  namespace: elyra-demo-project
-  labels:
-    app: gpu-exporter
-spec:
-  ports:
-  - port: 9400
-    targetPort: 9400
-    name: metrics
-  selector:
-    app: gpu-exporter
+# GPU metrics are provided by NVIDIA DCGM Exporter (part of NVIDIA Operator)
+# No need for custom GPU exporter when NVIDIA Operator is installed
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
@@ -400,14 +349,17 @@ spec:
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor  
 metadata:
-  name: gpu-monitoring
+  name: nvidia-dcgm-monitoring
   namespace: elyra-demo-project
   labels:
-    app: gpu-monitoring
+    app: nvidia-dcgm-monitoring
 spec:
+  namespaceSelector:
+    matchNames:
+    - nvidia-gpu-operator
   selector:
     matchLabels:
-      app: gpu-exporter
+      app: nvidia-dcgm-exporter
   endpoints:
   - port: metrics
     interval: 15s

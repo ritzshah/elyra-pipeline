@@ -214,23 +214,28 @@ metadata:
 data:
   runtimes.json: |
     {
-      "display_name": "Data Science Pipelines",
-      "schema_name": "kfp",
-      "metadata": {
-        "description": "OpenShift AI Data Science Pipelines Runtime",
-        "api_endpoint": "https://ds-pipeline-dspa-elyra-demo-project.apps.cluster.example.com",
-        "api_username": "",
-        "api_password": "",
-        "engine": "Argo",
-        "namespace": "elyra-demo-project",
-        "cos_endpoint": "http://ds-pipeline-minio-elyra-demo-project.svc.cluster.local:9000",
-        "cos_username": "minio",
-        "cos_password": "minio123",
-        "cos_bucket": "mlpipeline",
-        "tags": ["openshift-ai", "kubeflow", "demo"],
-        "runtime_type": "KUBEFLOW_PIPELINES",
-        "auth_type": "KUBERNETES_TOKEN"
-      }
+      "runtimes": [
+        {
+          "name": "data-science-pipelines",
+          "display_name": "Data Science Pipelines",
+          "schema_name": "kfp",
+          "metadata": {
+            "description": "OpenShift AI Data Science Pipelines Runtime",
+            "api_endpoint": "http://ds-pipeline-elyra-demo-dspa.elyra-demo-project.svc.cluster.local:8888",
+            "api_username": "",
+            "api_password": "",
+            "engine": "Argo",
+            "namespace": "elyra-demo-project",
+            "cos_endpoint": "http://ds-pipeline-minio-elyra-demo-dspa.elyra-demo-project.svc.cluster.local:9000",
+            "cos_username": "minio",
+            "cos_password": "minio123",
+            "cos_bucket": "mlpipeline",
+            "tags": ["openshift-ai", "kubeflow", "demo"],
+            "runtime_type": "KUBEFLOW_PIPELINES",
+            "auth_type": "KUBERNETES_TOKEN"
+          }
+        }
+      ]
     }
   
   pipeline_defaults.json: |

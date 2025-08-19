@@ -1,0 +1,237 @@
+{
+  "doc_type": "pipeline",
+  "version": "3.0",
+  "json_schema": "http://api.elyra.ai/schemas/pipeline/pipeline-flow/pipeline-flow-v3-schema.json",
+  "id": "elyra-ml-demo-pipeline",
+  "primary_pipeline": "primary",
+  "pipelines": [
+    {
+      "id": "primary",
+      "nodes": [
+        {
+          "id": "data-preparation-node",
+          "type": "execution_node",
+          "op": "execute-notebook-node",
+          "app_data": {
+            "component_parameters": {
+              "pipeline_outputs": [
+                "processed_data.csv",
+                "train_data.csv", 
+                "test_data.csv",
+                "preprocessing_artifacts/"
+              ],
+              "pipeline_inputs": [],
+              "env_vars": [
+                {
+                  "env_var": "EXPERIMENT_NAME",
+                  "value": "elyra_ml_demo"
+                }
+              ],
+              "runtime_image": "quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016",
+              "cpu_limit": 1,
+              "memory_limit": "2Gi",
+              "filename": "01-data-preparation.ipynb"
+            },
+            "label": "Data Preparation",
+            "ui_data": {
+              "label": "Data Preparation",
+              "image": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><text y='20'>📊</text></svg>",
+              "x_pos": 100,
+              "y_pos": 100,
+              "description": "Load, clean, and prepare data for model training"
+            }
+          },
+          "inputs": [
+            {
+              "id": "inPort",
+              "app_data": {
+                "ui_data": {
+                  "cardinality": {
+                    "min": 0,
+                    "max": -1
+                  },
+                  "label": "Input Port"
+                }
+              }
+            }
+          ],
+          "outputs": [
+            {
+              "id": "outPort",
+              "app_data": {
+                "ui_data": {
+                  "cardinality": {
+                    "min": 0,
+                    "max": -1
+                  },
+                  "label": "Output Port"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "model-training-node",
+          "type": "execution_node",
+          "op": "execute-notebook-node",
+          "app_data": {
+            "component_parameters": {
+              "pipeline_outputs": [
+                "models/",
+                "best_model.pkl",
+                "model_metadata.json",
+                "model_results.json"
+              ],
+              "pipeline_inputs": [],
+              "env_vars": [
+                {
+                  "env_var": "EXPERIMENT_NAME", 
+                  "value": "elyra_ml_demo"
+                },
+                {
+                  "env_var": "CROSS_VALIDATION_FOLDS",
+                  "value": "5"
+                }
+              ],
+              "runtime_image": "quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016",
+              "cpu_limit": 2,
+              "memory_limit": "4Gi",
+              "filename": "02-model-training.ipynb"
+            },
+            "label": "Model Training",
+            "ui_data": {
+              "label": "Model Training",
+              "image": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><text y='20'>🤖</text></svg>",
+              "x_pos": 300,
+              "y_pos": 100,
+              "description": "Train multiple models and select the best performer"
+            }
+          },
+          "inputs": [
+            {
+              "id": "inPort",
+              "app_data": {
+                "ui_data": {
+                  "cardinality": {
+                    "min": 0,
+                    "max": -1
+                  },
+                  "label": "Input Port"
+                }
+              }
+            }
+          ],
+          "outputs": [
+            {
+              "id": "outPort",
+              "app_data": {
+                "ui_data": {
+                  "cardinality": {
+                    "min": 0,
+                    "max": -1
+                  },
+                  "label": "Output Port"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "model-evaluation-node",
+          "type": "execution_node",
+          "op": "execute-notebook-node",
+          "app_data": {
+            "component_parameters": {
+              "pipeline_outputs": [
+                "evaluation/",
+                "model_registry/",
+                "evaluation_report.json"
+              ],
+              "pipeline_inputs": [],
+              "env_vars": [
+                {
+                  "env_var": "PERFORMANCE_THRESHOLD",
+                  "value": "0.8"
+                }
+              ],
+              "runtime_image": "quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016",
+              "cpu_limit": 1,
+              "memory_limit": "2Gi",
+              "filename": "03-model-evaluation.ipynb"
+            },
+            "label": "Model Evaluation",
+            "ui_data": {
+              "label": "Model Evaluation",
+              "image": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><text y='20'>📈</text></svg>",
+              "x_pos": 500,
+              "y_pos": 100,
+              "description": "Comprehensive model evaluation and validation"
+            }
+          },
+          "inputs": [
+            {
+              "id": "inPort",
+              "app_data": {
+                "ui_data": {
+                  "cardinality": {
+                    "min": 0,
+                    "max": -1
+                  },
+                  "label": "Input Port"
+                }
+              }
+            }
+          ],
+          "outputs": [
+            {
+              "id": "outPort",
+              "app_data": {
+                "ui_data": {
+                  "cardinality": {
+                    "min": 0,
+                    "max": -1
+                  },
+                  "label": "Output Port"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "links": [
+        {
+          "id": "data-to-training-link",
+          "type": "node_link",
+          "src_node_id": "data-preparation-node",
+          "src_port_id": "outPort",
+          "tgt_node_id": "model-training-node",
+          "tgt_port_id": "inPort",
+          "app_data": {
+            "ui_data": {
+              "linkType": "Curve"
+            }
+          }
+        },
+        {
+          "id": "training-to-evaluation-link",
+          "type": "node_link",
+          "src_node_id": "model-training-node",
+          "src_port_id": "outPort",
+          "tgt_node_id": "model-evaluation-node",
+          "tgt_port_id": "inPort",
+          "app_data": {
+            "ui_data": {
+              "linkType": "Curve"
+            }
+          }
+        }
+      ],
+      "app_data": {
+        "runtime_config": "data-science-pipelines",
+        "name": "elyra-ml-demo-pipeline",
+        "description": "End-to-end ML pipeline with Elyra on OpenShift AI"
+      }
+    }
+  ],
+  "schemas": []
+}

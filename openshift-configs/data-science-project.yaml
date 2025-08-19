@@ -12,7 +12,7 @@ spec:
       image: "quay.io/minio/minio:RELEASE.2023-05-18T00-05-36Z"
       s3CredentialsSecret:
         accessKey: "accesskey"
-        secretKey: "secretkey"
+        secretKey: "secretkey" #notsecret
         secretName: "mlpipeline-minio-artifact"
 ---
 apiVersion: v1
@@ -34,7 +34,7 @@ metadata:
   namespace: elyra-demo-project
 type: Opaque
 data:
-  password: bWxwaXBlbGluZQ==  # Base64 encoded "mlpipeline"
+  password: bWxwaXBlbGluZQ==  #notsecret
 ---
 apiVersion: v1
 kind: Secret
@@ -43,8 +43,8 @@ metadata:
   namespace: elyra-demo-project
 type: Opaque
 data:
-  accesskey: bWluaW8=      # Base64 encoded "minio"
-  secretkey: bWluaW8xMjM=  # Base64 encoded "minio123"
+  accesskey: bWluaW8=      #notsecret
+  secretkey: bWluaW8xMjM=  #notsecret
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

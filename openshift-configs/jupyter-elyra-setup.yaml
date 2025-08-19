@@ -13,9 +13,30 @@ spec:
   template:
     spec:
       serviceAccountName: elyra-demo-notebook
+      initContainers:
+      - name: setup-elyra
+        image: quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016
+        command: 
+        - sh
+        - -c
+        - |
+          # Create runtime directories
+          mkdir -p /tmp/jupyter-runtime /tmp/jupyter-data /tmp/xdg-runtime
+          chmod 755 /tmp/jupyter-runtime /tmp/jupyter-data /tmp/xdg-runtime
+          
+          # Install Elyra if not present
+          pip install --user elyra[all]==3.15.0 || echo "Elyra installation attempted"
+          
+          # Enable Elyra extension
+          jupyter lab build --minimize=False || echo "Lab build attempted"
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp-volume
+        - mountPath: /opt/app-root/src
+          name: elyra-demo-notebook
       containers:
       - name: elyra-demo-notebook
-        image: quay.io/elyra/elyra:3.15.0
+        image: quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016
         imagePullPolicy: Always
         workingDir: /opt/app-root/src
         env:
@@ -28,7 +49,7 @@ spec:
             --ServerApp.quit_button=False
             --ServerApp.tornado_settings={"user":"demo-user","hub_host":"https://rhods-dashboard-redhat-ods-applications.apps.cluster.example.com","hub_prefix":"/projects/elyra-demo-project"}
         - name: JUPYTER_IMAGE
-          value: quay.io/elyra/elyra:3.15.0
+          value: quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016
         - name: ELYRA_ENABLE_ANNOUNCEMENTS
           value: "false"
         - name: ELYRA_METADATA_NAMESPACE
@@ -37,6 +58,12 @@ spec:
           value: "demo-user"
         - name: NB_PREFIX
           value: /notebook/elyra-demo-project/elyra-demo-notebook
+        - name: JUPYTER_RUNTIME_DIR
+          value: /tmp/jupyter-runtime
+        - name: JUPYTER_DATA_DIR
+          value: /tmp/jupyter-data
+        - name: XDG_RUNTIME_DIR
+          value: /tmp/xdg-runtime
         ports:
         - containerPort: 8888
           name: notebook-port
@@ -55,13 +82,17 @@ spec:
           name: shm
         - mountPath: /etc/jupyter/elyra
           name: elyra-config
+        - mountPath: /tmp
+          name: tmp-volume
       volumes:
       - name: elyra-demo-notebook
         persistentVolumeClaim:
           claimName: elyra-demo-notebook
-      - emptyDir:
+      - name: shm
+        emptyDir:
           medium: Memory
-        name: shm
+      - name: tmp-volume
+        emptyDir: {}
       - name: elyra-config
         configMap:
           name: elyra-runtime-config

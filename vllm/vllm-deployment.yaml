@@ -76,8 +76,13 @@ spec:
     - name: cache-volume
       emptyDir:
         sizeLimit: 10Gi
-    nodeSelector:
-      accelerator: nvidia-tesla-t4
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: nvidia.com/gpu
+              operator: Exists
     tolerations:
     - key: "nvidia.com/gpu"
       operator: "Exists"

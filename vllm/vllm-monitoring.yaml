@@ -329,8 +329,13 @@ spec:
       labels:
         app: gpu-exporter
     spec:
-      nodeSelector:
-        accelerator: nvidia-tesla-v100
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nvidia.com/gpu
+                operator: Exists
       containers:
       - name: gpu-exporter
         image: mindprince/nvidia_gpu_prometheus_exporter:0.1

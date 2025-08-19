@@ -27,7 +27,7 @@ oc get routes -n elyra-demo-project
 oc get pvc -n elyra-demo-project
 
 # Check if GPU nodes available for vLLM demo
-oc get nodes -l accelerator=nvidia-tesla-t4
+oc get nodes --show-labels | grep nvidia.com/gpu
 ```
 
 ---
@@ -318,7 +318,7 @@ oc get nodes -l accelerator=nvidia-tesla-t4
 
 ### 4.2 Deploy vLLM Service (3 minutes)
 
-**Script**: *"Let's deploy a 7B parameter model on our T4 GPU."*
+**Script**: *"Let's deploy a 7B parameter model on our GPU (T4/L4)."*
 
 1. **Deploy vLLM**:
    ```bash

@@ -1,0 +1,409 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vllm-monitoring-config
+  namespace: kserve-inference
+data:
+  prometheus_config.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    
+    scrape_configs:
+    - job_name: 'vllm-metrics'
+      static_configs:
+      - targets: ['vllm-service:8081']
+      metrics_path: /metrics
+      scrape_interval: 10s
+      
+    - job_name: 'gpu-metrics'
+      static_configs:
+      - targets: ['gpu-exporter:9400']
+      scrape_interval: 15s
+      
+    rule_files:
+    - "/etc/prometheus/vllm_rules.yml"
+    
+    alerting:
+      alertmanagers:
+      - static_configs:
+        - targets:
+          - alertmanager:9093
+  
+  vllm_rules.yml: |
+    groups:
+    - name: vllm.rules
+      rules:
+      # Throughput and Performance Rules
+      - record: vllm:request_rate_5m
+        expr: rate(vllm_request_total[5m])
+      
+      - record: vllm:avg_latency_5m
+        expr: rate(vllm_request_duration_seconds_sum[5m]) / rate(vllm_request_duration_seconds_count[5m])
+      
+      - record: vllm:tokens_per_second_5m
+        expr: rate(vllm_output_tokens_total[5m])
+      
+      - record: vllm:gpu_utilization
+        expr: nvidia_gpu_utilization_gpu
+      
+      - record: vllm:gpu_memory_used_percent
+        expr: (nvidia_gpu_memory_used_bytes / nvidia_gpu_memory_total_bytes) * 100
+      
+      # Alert Rules
+      - alert: VLLMHighLatency
+        expr: vllm:avg_latency_5m > 5.0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "vLLM inference latency is high"
+          description: "Average latency over 5m is {{ $value }}s"
+      
+      - alert: VLLMHighErrorRate
+        expr: rate(vllm_request_errors_total[5m]) / rate(vllm_request_total[5m]) > 0.05
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "vLLM error rate is high"
+          description: "Error rate is {{ $value | humanizePercentage }}"
+      
+      - alert: VLLMLowThroughput
+        expr: vllm:request_rate_5m < 1.0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "vLLM throughput is low"
+          description: "Request rate is {{ $value }} requests/sec"
+      
+      - alert: VLLMGPUMemoryHigh
+        expr: vllm:gpu_memory_used_percent > 95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "vLLM GPU memory usage is critical"
+          description: "GPU memory usage is {{ $value }}%"
+      
+      - alert: VLLMServiceDown
+        expr: up{job="vllm-metrics"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "vLLM service is down"
+          description: "vLLM inference service is not responding"
+      
+      - alert: VLLMQueueDepthHigh
+        expr: vllm_queue_depth > 100
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "vLLM request queue is deep"
+          description: "Queue depth is {{ $value }} requests"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-vllm-dashboard
+  namespace: kserve-inference
+  labels:
+    grafana_dashboard: "1"
+data:
+  vllm-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "vLLM Performance Dashboard",
+        "tags": ["vllm", "llm", "inference"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "Request Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(vllm_request_total[5m])",
+                "legendFormat": "Requests/sec"
+              }
+            ],
+            "yAxes": [
+              {
+                "label": "Requests per second"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "Average Latency",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "vllm:avg_latency_5m",
+                "legendFormat": "Avg Latency (s)"
+              },
+              {
+                "expr": "histogram_quantile(0.95, rate(vllm_request_duration_seconds_bucket[5m]))",
+                "legendFormat": "P95 Latency (s)"
+              },
+              {
+                "expr": "histogram_quantile(0.99, rate(vllm_request_duration_seconds_bucket[5m]))",
+                "legendFormat": "P99 Latency (s)"
+              }
+            ],
+            "yAxes": [
+              {
+                "label": "Seconds"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+          },
+          {
+            "id": 3,
+            "title": "Tokens per Second",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(vllm_output_tokens_total[5m])",
+                "legendFormat": "Output Tokens/sec"
+              },
+              {
+                "expr": "rate(vllm_input_tokens_total[5m])",
+                "legendFormat": "Input Tokens/sec"
+              }
+            ],
+            "yAxes": [
+              {
+                "label": "Tokens per second"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+          },
+          {
+            "id": 4,
+            "title": "GPU Utilization",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "nvidia_gpu_utilization_gpu",
+                "legendFormat": "GPU {{gpu}} Utilization %"
+              }
+            ],
+            "yAxes": [
+              {
+                "label": "Percentage",
+                "max": 100,
+                "min": 0
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+          },
+          {
+            "id": 5,
+            "title": "GPU Memory Usage",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "nvidia_gpu_memory_used_bytes / 1024 / 1024 / 1024",
+                "legendFormat": "GPU {{gpu}} Memory Used (GB)"
+              },
+              {
+                "expr": "nvidia_gpu_memory_total_bytes / 1024 / 1024 / 1024",
+                "legendFormat": "GPU {{gpu}} Memory Total (GB)"
+              }
+            ],
+            "yAxes": [
+              {
+                "label": "Gigabytes"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+          },
+          {
+            "id": 6,
+            "title": "Request Queue Depth",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "vllm_queue_depth",
+                "legendFormat": "Queue Depth"
+              }
+            ],
+            "yAxes": [
+              {
+                "label": "Number of requests"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+          },
+          {
+            "id": 7,
+            "title": "Error Rate",
+            "type": "singlestat",
+            "targets": [
+              {
+                "expr": "rate(vllm_request_errors_total[5m]) / rate(vllm_request_total[5m]) * 100",
+                "legendFormat": "Error Rate %"
+              }
+            ],
+            "valueFontSize": "80%",
+            "valueName": "current",
+            "thresholds": "1,5",
+            "colorBackground": true,
+            "gridPos": {"h": 4, "w": 6, "x": 0, "y": 24}
+          },
+          {
+            "id": 8,
+            "title": "Active Connections",
+            "type": "singlestat",
+            "targets": [
+              {
+                "expr": "vllm_active_connections",
+                "legendFormat": "Active Connections"
+              }
+            ],
+            "valueFontSize": "80%",
+            "valueName": "current",
+            "gridPos": {"h": 4, "w": 6, "x": 6, "y": 24}
+          },
+          {
+            "id": 9,
+            "title": "Model Loading Status",
+            "type": "singlestat",
+            "targets": [
+              {
+                "expr": "vllm_model_loaded",
+                "legendFormat": "Model Loaded"
+              }
+            ],
+            "valueFontSize": "80%",
+            "valueName": "current",
+            "valueMaps": [
+              {"value": "0", "text": "Not Loaded"},
+              {"value": "1", "text": "Loaded"}
+            ],
+            "gridPos": {"h": 4, "w": 6, "x": 12, "y": 24}
+          },
+          {
+            "id": 10,
+            "title": "Cache Hit Rate",
+            "type": "singlestat",
+            "targets": [
+              {
+                "expr": "rate(vllm_cache_hits_total[5m]) / (rate(vllm_cache_hits_total[5m]) + rate(vllm_cache_misses_total[5m])) * 100",
+                "legendFormat": "Cache Hit Rate %"
+              }
+            ],
+            "valueFontSize": "80%",
+            "valueName": "current",
+            "thresholds": "50,80",
+            "colorBackground": true,
+            "gridPos": {"h": 4, "w": 6, "x": 18, "y": 24}
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "10s"
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpu-exporter
+  namespace: kserve-inference
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gpu-exporter
+  template:
+    metadata:
+      labels:
+        app: gpu-exporter
+    spec:
+      nodeSelector:
+        accelerator: nvidia-tesla-v100
+      containers:
+      - name: gpu-exporter
+        image: mindprince/nvidia_gpu_prometheus_exporter:0.1
+        ports:
+        - containerPort: 9400
+          name: metrics
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: proc
+          mountPath: /host/proc
+          readOnly: true
+        - name: sys
+          mountPath: /host/sys
+          readOnly: true
+        env:
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: "all"
+      volumes:
+      - name: proc
+        hostPath:
+          path: /proc
+      - name: sys
+        hostPath:
+          path: /sys
+      tolerations:
+      - key: "nvidia.com/gpu"
+        operator: "Exists"
+        effect: "NoSchedule"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gpu-exporter
+  namespace: kserve-inference
+  labels:
+    app: gpu-exporter
+spec:
+  ports:
+  - port: 9400
+    targetPort: 9400
+    name: metrics
+  selector:
+    app: gpu-exporter
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vllm-monitoring
+  namespace: kserve-inference
+  labels:
+    app: vllm-monitoring
+spec:
+  selector:
+    matchLabels:
+      app: vllm-llama-model
+  endpoints:
+  - port: metrics
+    interval: 10s
+    path: /metrics
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor  
+metadata:
+  name: gpu-monitoring
+  namespace: kserve-inference
+  labels:
+    app: gpu-monitoring
+spec:
+  selector:
+    matchLabels:
+      app: gpu-exporter
+  endpoints:
+  - port: metrics
+    interval: 15s
+    path: /metrics

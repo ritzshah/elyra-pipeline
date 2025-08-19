@@ -1,0 +1,229 @@
+apiVersion: serving.kserve.io/v1alpha1
+kind: ServingRuntime
+metadata:
+  name: elyra-sklearn-runtime
+  namespace: elyra-demo-project
+  annotations:
+    opendatahub.io/recommended-accelerators: '["nvidia.com/gpu"]'
+    opendatahub.io/template-display-name: "Elyra Scikit-learn Server"
+    opendatahub.io/template-name: "elyra-sklearn"
+  labels:
+    opendatahub.io/dashboard: "true"
+spec:
+  supportedModelFormats:
+  - name: sklearn
+    version: "1"
+    autoSelect: true
+  - name: pickle
+    version: "1"
+  - name: joblib
+    version: "1"
+  protocolVersions:
+  - v1
+  - v2
+  multiModel: false
+  containers:
+  - name: kserve-container
+    image: quay.io/modh/odh-mlserver:1.3.5-1
+    env:
+    - name: MLSERVER_MODELS_DIR
+      value: "/mnt/models"
+    - name: MLSERVER_GRPC_PORT
+      value: "8001"
+    - name: MLSERVER_HTTP_PORT
+      value: "8080"
+    - name: MLSERVER_MODEL_IMPLEMENTATION
+      value: "mlserver_sklearn.SKLearnModel"
+    - name: MLSERVER_MODEL_NAME
+      value: "{{.Name}}"
+    - name: MLSERVER_MODEL_URI
+      value: "/mnt/models"
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: "5"
+        memory: 5Gi
+    ports:
+    - containerPort: 8080
+      name: http1
+      protocol: TCP
+    - containerPort: 8001
+      name: grpc
+      protocol: TCP
+---
+apiVersion: serving.kserve.io/v1alpha1
+kind: ServingRuntime  
+metadata:
+  name: elyra-vllm-runtime
+  namespace: elyra-demo-project
+  annotations:
+    opendatahub.io/recommended-accelerators: '["nvidia.com/gpu"]'
+    opendatahub.io/template-display-name: "Elyra vLLM Runtime"
+    opendatahub.io/template-name: "elyra-vllm"
+  labels:
+    opendatahub.io/dashboard: "true"
+spec:
+  supportedModelFormats:
+  - name: pytorch
+    version: "1"
+    autoSelect: true
+  - name: huggingface
+    version: "1"
+  protocolVersions:
+  - v1
+  multiModel: false
+  containers:
+  - name: kserve-container
+    image: vllm/vllm-openai:latest
+    command:
+    - python
+    - -m
+    - vllm.entrypoints.openai.api_server
+    args:
+    - --model={{.Name}}
+    - --host=0.0.0.0
+    - --port=8080
+    - --tensor-parallel-size=1
+    - --gpu-memory-utilization=0.9
+    env:
+    - name: HF_HOME
+      value: /tmp/hf_cache
+    - name: TRANSFORMERS_CACHE
+      value: /tmp/hf_cache
+    - name: CUDA_VISIBLE_DEVICES
+      value: "0"
+    resources:
+      requests:
+        nvidia.com/gpu: 1
+        cpu: "4"
+        memory: "16Gi"
+      limits:
+        nvidia.com/gpu: 1
+        cpu: "8"
+        memory: "32Gi"
+    ports:
+    - containerPort: 8080
+      name: http1
+      protocol: TCP
+    readinessProbe:
+      httpGet:
+        path: /health
+        port: 8080
+      initialDelaySeconds: 180
+      periodSeconds: 10
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 8080
+      initialDelaySeconds: 300
+      periodSeconds: 30
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: model-mesh-config
+  namespace: elyra-demo-project
+data:
+  config.yaml: |
+    podsPerRuntime: 2
+    
+    runtimeAdapters:
+      sklearn-adapter:
+        image: "quay.io/modh/modelmesh-runtime-adapter:latest"
+        pullPolicy: "IfNotPresent"
+        memBufferBytes: 134217728
+        modelLoadingTimeoutMillis: 90000
+        defaultModelType: "sklearn"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1"
+      
+      vllm-adapter:
+        image: "quay.io/modh/modelmesh-runtime-adapter:latest"
+        pullPolicy: "IfNotPresent"
+        memBufferBytes: 268435456
+        modelLoadingTimeoutMillis: 300000
+        defaultModelType: "pytorch"
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1"
+            nvidia.com/gpu: 1
+          limits:
+            memory: "8Gi"
+            cpu: "4"
+            nvidia.com/gpu: 1
+    
+    storageHelpers:
+      s3:
+        image: "quay.io/modh/modelmesh-minio-examples:latest"
+        pullPolicy: "IfNotPresent"
+      
+    builtInServerTypes:
+      sklearn:
+        image: "quay.io/modh/odh-mlserver:1.3.5-1"
+      
+      vllm:
+        image: "vllm/vllm-openai:latest"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: model-storage-config
+  namespace: elyra-demo-project
+  labels:
+    modelmesh-service: modelmesh-serving
+type: Opaque
+data:
+  localMinIO: |
+    {
+      "type": "s3",
+      "access_key_id": "minio",
+      "secret_access_key": "minio123",
+      "endpoint_url": "http://ds-pipeline-minio-elyra-demo-project.svc.cluster.local:9000",
+      "default_bucket": "mlpipeline",
+      "region": "us-south"
+    }
+# Note: Using Data Science Pipelines MinIO (ds-pipeline-minio-elyra-demo-project)
+# No separate MinIO deployment needed - reusing the one from DataSciencePipelinesApplication
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: model-serving-network-policy
+  namespace: elyra-demo-project
+spec:
+  podSelector:
+    matchLabels:
+      name: modelmesh-serving
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: istio-system
+    - namespaceSelector:
+        matchLabels:
+          name: knative-serving
+    - podSelector:
+        matchLabels:
+          app: istiod
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 9000  # Data Science Pipelines MinIO

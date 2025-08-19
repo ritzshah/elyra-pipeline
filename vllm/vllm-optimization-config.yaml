@@ -1,0 +1,329 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vllm-optimization-config
+  namespace: kserve-inference
+data:
+  vllm_config.json: |
+    {
+      "model_config": {
+        "model_name": "llama-2-7b-chat",
+        "model_path": "/models/llama-2-7b-chat",
+        "trust_remote_code": true,
+        "revision": "main"
+      },
+      "engine_config": {
+        "tensor_parallel_size": 1,
+        "pipeline_parallel_size": 1,
+        "max_model_len": 4096,
+        "gpu_memory_utilization": 0.9,
+        "swap_space": 4,
+        "cpu_offload_gb": 0,
+        "quantization": null,
+        "dtype": "auto",
+        "seed": 42
+      },
+      "scheduler_config": {
+        "max_num_seqs": 256,
+        "max_num_batched_tokens": 8192,
+        "max_paddings": 256,
+        "enable_chunked_prefill": true,
+        "max_num_on_the_fly": 16
+      },
+      "cache_config": {
+        "enable_prefix_caching": true,
+        "block_size": 16,
+        "cache_dtype": "auto"
+      },
+      "performance_tuning": {
+        "enable_cuda_graph": true,
+        "max_context_len_to_capture": 8192,
+        "disable_custom_all_reduce": false,
+        "enforce_eager": false,
+        "max_seq_len_to_capture": 8192
+      },
+      "server_config": {
+        "host": "0.0.0.0",
+        "port": 8080,
+        "max_log_len": 2048,
+        "disable_log_stats": false,
+        "disable_log_requests": false,
+        "enable_auto_tool_choice": true,
+        "tool_call_parser": "auto"
+      }
+    }
+  
+  optimization_settings.yaml: |
+    # vLLM Optimization Settings for Production
+    
+    # GPU Memory Management
+    gpu_optimization:
+      memory_utilization: 0.9  # Use 90% of GPU memory
+      swap_space_gb: 4         # CPU swap space for overflow
+      kv_cache_dtype: "auto"   # Automatic KV cache data type
+      quantization:
+        enabled: false         # Enable for memory savings
+        method: "awq"         # or "gptq", "bnb"
+        bits: 4
+    
+    # Batching Configuration
+    batching:
+      max_batch_size: 256      # Maximum requests per batch
+      max_tokens_per_batch: 8192  # Token limit per batch
+      enable_chunked_prefill: true  # Process long sequences in chunks
+      chunked_prefill_size: 512     # Chunk size for prefill
+      
+    # Scheduling Optimization  
+    scheduling:
+      policy: "fcfs"           # First-Come-First-Serve
+      max_waiting_time: 30     # Max wait time in seconds
+      enable_priority_scheduling: false
+      preemption_mode: "swap"  # or "recompute"
+    
+    # Performance Features
+    performance:
+      enable_prefix_caching: true    # Cache common prefixes
+      enable_cuda_graph: true        # Use CUDA graphs for speed
+      enforce_eager_mode: false      # Use eager vs graph mode
+      enable_lora: false            # LoRA adapter support
+      
+    # Model Parallel Configuration
+    parallelism:
+      tensor_parallel_size: 1       # GPUs for tensor parallelism
+      pipeline_parallel_size: 1     # GPUs for pipeline parallelism
+      ray_enable: false            # Use Ray for distributed serving
+      
+    # Monitoring and Logging
+    monitoring:
+      enable_metrics: true
+      metrics_port: 8081
+      log_level: "INFO"
+      enable_opentelemetry: true
+      otlp_endpoint: "http://jaeger:14268/api/traces"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vllm-performance-tuning
+  namespace: kserve-inference
+data:
+  performance_guide.md: |
+    # vLLM Performance Tuning Guide
+    
+    ## GPU Memory Optimization
+    
+    ### Memory Utilization
+    - Set `gpu_memory_utilization` to 0.85-0.95 for optimal performance
+    - Monitor GPU memory usage with nvidia-smi
+    - Use `swap_space` for handling memory overflow
+    
+    ### KV Cache Management
+    - Enable `enable_prefix_caching` for repeated prefixes
+    - Adjust `block_size` based on your workload (16 is default)
+    - Use appropriate `cache_dtype` (fp16, bf16, fp32)
+    
+    ## Batching Strategies
+    
+    ### Dynamic Batching
+    - Increase `max_num_seqs` for higher throughput
+    - Balance between latency and throughput
+    - Monitor queue depth and waiting times
+    
+    ### Continuous Batching
+    - vLLM uses continuous batching by default
+    - Requests are processed as they arrive
+    - No need to wait for batch to fill
+    
+    ## Sequence Length Optimization
+    
+    ### Max Model Length
+    - Set `max_model_len` to your actual needs
+    - Longer sequences require more memory
+    - Consider chunked prefill for very long sequences
+    
+    ### Chunked Prefill
+    - Enable for sequences longer than GPU memory allows
+    - Reduces time-to-first-token for long prompts
+    - Set appropriate chunk size based on GPU memory
+    
+    ## Hardware-Specific Optimizations
+    
+    ### NVIDIA GPUs
+    - Use tensor cores with bf16/fp16 data types
+    - Enable CUDA graphs for kernel fusion
+    - Optimize for your specific GPU architecture
+    
+    ### CPU Optimization
+    - Use appropriate number of CPU cores
+    - Enable CPU offloading if GPU memory is limited
+    - Consider NUMA topology for multi-socket systems
+    
+    ## Monitoring and Profiling
+    
+    ### Key Metrics
+    - Requests per second (throughput)
+    - Time to first token (TTFT)
+    - Time per output token (TPOT)
+    - GPU utilization and memory usage
+    - Queue depth and waiting times
+    
+    ### Profiling Tools
+    - Use vLLM's built-in metrics endpoint
+    - NVIDIA Nsight for GPU profiling
+    - Prometheus/Grafana for monitoring
+    
+    ## Benchmarking Commands
+    
+    ```bash
+    # Benchmark throughput
+    python -m vllm.entrypoints.openai.api_server \
+      --model /models/llama-2-7b \
+      --tensor-parallel-size 1 \
+      --gpu-memory-utilization 0.9 \
+      --max-model-len 4096 \
+      --enable-prefix-caching
+    
+    # Load testing
+    python benchmark_serving.py \
+      --backend vllm \
+      --model /models/llama-2-7b \
+      --dataset-name random \
+      --num-prompts 1000 \
+      --request-rate 10
+    ```
+  
+  benchmarking_script.py: |
+    #!/usr/bin/env python3
+    """
+    vLLM Performance Benchmarking Script for Elyra Demo
+    """
+    
+    import asyncio
+    import aiohttp
+    import time
+    import json
+    import statistics
+    from typing import List, Dict
+    
+    class VLLMBenchmark:
+        def __init__(self, base_url: str = "http://localhost:8080"):
+            self.base_url = base_url
+            self.session = None
+            
+        async def __aenter__(self):
+            self.session = aiohttp.ClientSession()
+            return self
+            
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            if self.session:
+                await self.session.close()
+    
+        async def send_request(self, prompt: str, max_tokens: int = 256):
+            """Send a single inference request"""
+            payload = {
+                "model": "llama-2-7b-chat",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": max_tokens,
+                "temperature": 0.7,
+                "stream": False
+            }
+            
+            start_time = time.time()
+            async with self.session.post(
+                f"{self.base_url}/v1/chat/completions",
+                json=payload
+            ) as response:
+                result = await response.json()
+                end_time = time.time()
+                
+                return {
+                    "latency": end_time - start_time,
+                    "tokens_generated": len(result.get("choices", [{}])[0].get("message", {}).get("content", "").split()),
+                    "status_code": response.status
+                }
+    
+        async def run_benchmark(self, 
+                              prompts: List[str], 
+                              concurrent_requests: int = 10,
+                              max_tokens: int = 256):
+            """Run benchmark with multiple concurrent requests"""
+            
+            results = []
+            semaphore = asyncio.Semaphore(concurrent_requests)
+            
+            async def bounded_request(prompt):
+                async with semaphore:
+                    return await self.send_request(prompt, max_tokens)
+            
+            start_time = time.time()
+            
+            # Execute all requests concurrently
+            tasks = [bounded_request(prompt) for prompt in prompts]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            end_time = time.time()
+            
+            # Filter successful results
+            successful_results = [r for r in results if isinstance(r, dict) and r.get("status_code") == 200]
+            
+            if not successful_results:
+                return {"error": "No successful requests"}
+            
+            # Calculate metrics
+            latencies = [r["latency"] for r in successful_results]
+            total_tokens = sum(r["tokens_generated"] for r in successful_results)
+            total_time = end_time - start_time
+            
+            metrics = {
+                "total_requests": len(prompts),
+                "successful_requests": len(successful_results),
+                "success_rate": len(successful_results) / len(prompts),
+                "total_time": total_time,
+                "throughput_rps": len(successful_results) / total_time,
+                "tokens_per_second": total_tokens / total_time,
+                "latency_stats": {
+                    "mean": statistics.mean(latencies),
+                    "median": statistics.median(latencies),
+                    "p95": statistics.quantiles(latencies, n=20)[18] if len(latencies) > 1 else latencies[0],
+                    "p99": statistics.quantiles(latencies, n=100)[98] if len(latencies) > 1 else latencies[0],
+                    "min": min(latencies),
+                    "max": max(latencies)
+                }
+            }
+            
+            return metrics
+    
+    async def main():
+        # Sample prompts for benchmarking
+        prompts = [
+            "Explain machine learning in simple terms.",
+            "Write a Python function to sort a list.",
+            "What are the benefits of cloud computing?",
+            "Describe the process of photosynthesis.",
+            "How does blockchain technology work?",
+        ] * 20  # Repeat for more requests
+        
+        async with VLLMBenchmark() as benchmark:
+            print("Running vLLM performance benchmark...")
+            
+            # Test different concurrency levels
+            for concurrency in [1, 5, 10, 20]:
+                print(f"\nTesting with {concurrency} concurrent requests...")
+                
+                metrics = await benchmark.run_benchmark(
+                    prompts[:50],  # Use first 50 prompts
+                    concurrent_requests=concurrency,
+                    max_tokens=128
+                )
+                
+                if "error" not in metrics:
+                    print(f"Throughput: {metrics['throughput_rps']:.2f} requests/sec")
+                    print(f"Tokens/sec: {metrics['tokens_per_second']:.2f}")
+                    print(f"Mean latency: {metrics['latency_stats']['mean']:.3f}s")
+                    print(f"P95 latency: {metrics['latency_stats']['p95']:.3f}s")
+                    print(f"Success rate: {metrics['success_rate']:.2%}")
+                else:
+                    print(f"Benchmark failed: {metrics['error']}")
+    
+    if __name__ == "__main__":
+        asyncio.run(main())

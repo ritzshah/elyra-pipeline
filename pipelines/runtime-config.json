@@ -1,0 +1,22 @@
+{
+  "display_name": "OpenShift AI Kubeflow Runtime",
+  "metadata": {
+    "description": "Kubeflow Pipelines runtime for OpenShift AI demo",
+    "api_endpoint": "https://ds-pipeline-dspa.redhat-ods-applications.svc.cluster.local:8443",
+    "api_username": "",
+    "api_password": "",
+    "engine": "Argo",
+    "namespace": "redhat-ods-applications",
+    "cos_endpoint": "https://s3.amazonaws.com",
+    "cos_username": "minio",
+    "cos_password": "minio123",
+    "cos_bucket": "elyra-demo-bucket",
+    "tags": ["kubeflow", "openshift-ai", "demo"],
+    "schema_name": "kfp",
+    "runtime_type": "KUBEFLOW_PIPELINES",
+    "auth_type": "KUBERNETES_TOKEN",
+    "kubernetes_endpoint": "https://kubernetes.default.svc",
+    "kubernetes_namespace": "redhat-ods-applications"
+  },
+  "schema_name": "kfp"
+}

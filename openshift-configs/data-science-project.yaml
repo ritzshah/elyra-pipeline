@@ -1,0 +1,145 @@
+apiVersion: datasciencepipelinesapplications.opendatahub.io/v1alpha1
+kind: DataSciencePipelinesApplication
+metadata:
+  name: elyra-demo-dspa
+  namespace: elyra-demo-project
+spec:
+  apiServer:
+    deploy: true
+    image: registry.redhat.io/ubi8/ubi-minimal
+    argoLauncherImage: registry.redhat.io/ubi8/ubi-minimal
+    argoDriverImage: registry.redhat.io/ubi8/ubi-minimal
+    resources:
+      requests:
+        cpu: 250m
+        memory: 500Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+  database:
+    mariaDB:
+      deploy: true
+      pipelineDBName: "mlpipeline"
+      pvcSize: 20Gi
+      username: "mlpipeline"
+      passwordSecret:
+        name: "mariadb-secret"
+        key: "password"
+  objectStorage:
+    minio:
+      deploy: true
+      bucket: "mlpipeline"
+      image: registry.redhat.io/ubi8/ubi-minimal
+      pvcSize: 20Gi
+      s3CredentialsSecret:
+        accessKey: "accesskey"
+        secretKey: "secretkey"
+        secretName: "mlpipeline-minio-artifact"
+  mlmd:
+    deploy: true
+    grpc:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 200m
+          memory: 512Mi
+    envoy:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 200m
+          memory: 512Mi
+  scheduledWorkflow:
+    deploy: true
+    image: registry.redhat.io/ubi8/ubi-minimal
+    resources:
+      requests:
+        cpu: 120m
+        memory: 100Mi
+      limits:
+        cpu: 250m
+        memory: 250Mi
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: elyra-demo-project
+  labels:
+    opendatahub.io/dashboard: "true"
+    modelmesh-enabled: "true"
+    name: elyra-demo-project
+  annotations:
+    openshift.io/description: "Elyra MLOps Demo Project"
+    openshift.io/display-name: "Elyra Demo"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mariadb-secret
+  namespace: elyra-demo-project
+type: Opaque
+data:
+  password: bWxwaXBlbGluZQ==  # Base64 encoded "mlpipeline"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mlpipeline-minio-artifact
+  namespace: elyra-demo-project
+type: Opaque
+data:
+  accesskey: bWluaW8=      # Base64 encoded "minio"
+  secretkey: bWluaW8xMjM=  # Base64 encoded "minio123"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: elyra-demo-admin
+  namespace: elyra-demo-project
+subjects:
+- kind: User
+  name: demo-user
+  apiGroup: rbac.authorization.k8s.io
+- kind: ServiceAccount
+  name: pipeline-runner
+  namespace: elyra-demo-project
+roleRef:
+  kind: ClusterRole
+  name: edit
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pipeline-runner
+  namespace: elyra-demo-project
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: elyra-runtime
+  namespace: elyra-demo-project
+spec:
+  tags:
+  - name: latest
+    from:
+      kind: DockerImage
+      name: quay.io/modh/runtime-images:runtime-datascience-ubi9-python-3.9-2023c
+    importPolicy:
+      scheduled: true
+  - name: tensorflow
+    from:
+      kind: DockerImage
+      name: quay.io/modh/runtime-images:runtime-tensorflow-ubi9-python-3.9-2023c
+    importPolicy:
+      scheduled: true
+  - name: pytorch
+    from:
+      kind: DockerImage
+      name: quay.io/modh/runtime-images:runtime-pytorch-ubi9-python-3.9-2023c
+    importPolicy:
+      scheduled: true

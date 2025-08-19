@@ -1,0 +1,329 @@
+{
+  "doc_type": "pipeline",
+  "version": "3.0",
+  "json_schema": "http://api.elyra.ai/schemas/pipeline/pipeline-flow/pipeline-flow-v3-schema.json",
+  "id": "elyra-ml-demo-pipeline",
+  "primary_pipeline": "primary",
+  "pipelines": [
+    {
+      "id": "primary",
+      "nodes": [
+        {
+          "id": "data-preparation-node",
+          "type": "execution_node",
+          "op": "execute-notebook-node",
+          "app_data": {
+            "component_parameters": {
+              "dependencies": [],
+              "include_subdirectories": false,
+              "outputs": [
+                "processed_data.csv",
+                "train_data.csv", 
+                "test_data.csv",
+                "preprocessing_artifacts/"
+              ],
+              "env_vars": [
+                {
+                  "env_var": "EXPERIMENT_NAME",
+                  "value": "elyra_ml_demo"
+                }
+              ],
+              "kubernetes_pod_annotations": [],
+              "kubernetes_pod_labels": [],
+              "kubernetes_secrets": [],
+              "kubernetes_shared_mem_size": {},
+              "kubernetes_tolerations": [],
+              "mounted_volumes": [],
+              "filename": "01-data-preparation.ipynb",
+              "runtime_image": "quay.io/modh/runtime-images:runtime-datascience-ubi9-python-3.9-2023c"
+            },
+            "label": "Data Preparation",
+            "ui_data": {
+              "label": "Data Preparation",
+              "image": "/notebook/images/notebook.svg",
+              "x_pos": 100,
+              "y_pos": 100,
+              "description": "Load, clean, and prepare data for model training"
+            }
+          },
+          "inputs": [
+            {
+              "id": "inPort",
+              "app_data": {
+                "ui_data": {
+                  "cardinality": {
+                    "min": 0,
+                    "max": -1
+                  },
+                  "label": "Input Port"
+                }
+              }
+            }
+          ],
+          "outputs": [
+            {
+              "id": "outPort",
+              "app_data": {
+                "ui_data": {
+                  "cardinality": {
+                    "min": 0,
+                    "max": -1
+                  },
+                  "label": "Output Port"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "model-training-node",
+          "type": "execution_node",
+          "op": "execute-notebook-node",
+          "app_data": {
+            "component_parameters": {
+              "dependencies": [],
+              "include_subdirectories": false,
+              "outputs": [
+                "models/",
+                "best_model.pkl",
+                "model_metadata.json",
+                "model_results.json"
+              ],
+              "env_vars": [
+                {
+                  "env_var": "EXPERIMENT_NAME", 
+                  "value": "elyra_ml_demo"
+                },
+                {
+                  "env_var": "CROSS_VALIDATION_FOLDS",
+                  "value": "5"
+                }
+              ],
+              "kubernetes_pod_annotations": [],
+              "kubernetes_pod_labels": [],
+              "kubernetes_secrets": [],
+              "kubernetes_shared_mem_size": {},
+              "kubernetes_tolerations": [],
+              "mounted_volumes": [],
+              "filename": "02-model-training.ipynb",
+              "runtime_image": "quay.io/modh/runtime-images:runtime-datascience-ubi9-python-3.9-2023c"
+            },
+            "label": "Model Training",
+            "ui_data": {
+              "label": "Model Training",
+              "image": "/notebook/images/notebook.svg",
+              "x_pos": 300,
+              "y_pos": 100,
+              "description": "Train multiple models and select the best performer"
+            }
+          },
+          "inputs": [
+            {
+              "id": "inPort",
+              "app_data": {
+                "ui_data": {
+                  "cardinality": {
+                    "min": 0,
+                    "max": -1
+                  },
+                  "label": "Input Port"
+                }
+              }
+            }
+          ],
+          "outputs": [
+            {
+              "id": "outPort",
+              "app_data": {
+                "ui_data": {
+                  "cardinality": {
+                    "min": 0,
+                    "max": -1
+                  },
+                  "label": "Output Port"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "model-evaluation-node",
+          "type": "execution_node",
+          "op": "execute-notebook-node",
+          "app_data": {
+            "component_parameters": {
+              "dependencies": [],
+              "include_subdirectories": false,
+              "outputs": [
+                "evaluation/",
+                "model_registry/",
+                "evaluation_report.json"
+              ],
+              "env_vars": [
+                {
+                  "env_var": "PERFORMANCE_THRESHOLD",
+                  "value": "0.8"
+                }
+              ],
+              "kubernetes_pod_annotations": [],
+              "kubernetes_pod_labels": [],
+              "kubernetes_secrets": [],
+              "kubernetes_shared_mem_size": {},
+              "kubernetes_tolerations": [],
+              "mounted_volumes": [],
+              "filename": "03-model-evaluation.ipynb",
+              "runtime_image": "quay.io/modh/runtime-images:runtime-datascience-ubi9-python-3.9-2023c"
+            },
+            "label": "Model Evaluation",
+            "ui_data": {
+              "label": "Model Evaluation",
+              "image": "/notebook/images/notebook.svg",
+              "x_pos": 500,
+              "y_pos": 100,
+              "description": "Comprehensive model evaluation and validation"
+            }
+          },
+          "inputs": [
+            {
+              "id": "inPort",
+              "app_data": {
+                "ui_data": {
+                  "cardinality": {
+                    "min": 0,
+                    "max": -1
+                  },
+                  "label": "Input Port"
+                }
+              }
+            }
+          ],
+          "outputs": [
+            {
+              "id": "outPort",
+              "app_data": {
+                "ui_data": {
+                  "cardinality": {
+                    "min": 0,
+                    "max": -1
+                  },
+                  "label": "Output Port"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "model-deployment-node",
+          "type": "execution_node",
+          "op": "execute-notebook-node",
+          "app_data": {
+            "component_parameters": {
+              "dependencies": [],
+              "include_subdirectories": false,
+              "outputs": [
+                "deployment/",
+                "kserve_configs/"
+              ],
+              "env_vars": [
+                {
+                  "env_var": "KSERVE_NAMESPACE",
+                  "value": "kserve-inference"
+                },
+                {
+                  "env_var": "MODEL_NAME",
+                  "value": "elyra-demo-model"
+                }
+              ],
+              "kubernetes_pod_annotations": [],
+              "kubernetes_pod_labels": [],
+              "kubernetes_secrets": [],
+              "kubernetes_shared_mem_size": {},
+              "kubernetes_tolerations": [],
+              "mounted_volumes": [],
+              "filename": "04-model-deployment.ipynb",
+              "runtime_image": "quay.io/modh/runtime-images:runtime-datascience-ubi9-python-3.9-2023c"
+            },
+            "label": "Model Deployment",
+            "ui_data": {
+              "label": "Model Deployment", 
+              "image": "/notebook/images/notebook.svg",
+              "x_pos": 700,
+              "y_pos": 100,
+              "description": "Deploy model to KServe for serving"
+            }
+          },
+          "inputs": [
+            {
+              "id": "inPort",
+              "app_data": {
+                "ui_data": {
+                  "cardinality": {
+                    "min": 0,
+                    "max": -1
+                  },
+                  "label": "Input Port"
+                }
+              }
+            }
+          ],
+          "outputs": [
+            {
+              "id": "outPort",
+              "app_data": {
+                "ui_data": {
+                  "cardinality": {
+                    "min": 0,
+                    "max": -1
+                  },
+                  "label": "Output Port"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "links": [
+        {
+          "id": "data-to-training-link",
+          "type": "node_link",
+          "src_node_id": "data-preparation-node",
+          "src_port_id": "outPort",
+          "tgt_node_id": "model-training-node",
+          "tgt_port_id": "inPort",
+          "app_data": {
+            "ui_data": {
+              "linkType": "Curve"
+            }
+          }
+        },
+        {
+          "id": "training-to-evaluation-link",
+          "type": "node_link",
+          "src_node_id": "model-training-node",
+          "src_port_id": "outPort",
+          "tgt_node_id": "model-evaluation-node",
+          "tgt_port_id": "inPort",
+          "app_data": {
+            "ui_data": {
+              "linkType": "Curve"
+            }
+          }
+        },
+        {
+          "id": "evaluation-to-deployment-link",
+          "type": "node_link",
+          "src_node_id": "model-evaluation-node",
+          "src_port_id": "outPort",
+          "tgt_node_id": "model-deployment-node",
+          "tgt_port_id": "inPort",
+          "app_data": {
+            "ui_data": {
+              "linkType": "Curve"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "schemas": []
+}

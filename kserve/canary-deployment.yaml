@@ -1,0 +1,99 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: elyra-demo-model-canary
+  namespace: kserve-inference
+  annotations:
+    serving.kserve.io/deploymentMode: "Serverless"
+    autoscaling.knative.dev/minScale: "0"
+    autoscaling.knative.dev/maxScale: "5"
+    autoscaling.knative.dev/target: "1"
+spec:
+  predictor:
+    serviceAccountName: kserve-sa
+    sklearn:
+      storageUri: "s3://mlpipeline/models/canary_model"
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 1Gi
+      env:
+        - name: STORAGE_URI
+          value: "s3://mlpipeline/models/canary_model"
+        - name: MODEL_VERSION
+          value: "canary"
+    tolerations:
+      - key: "model-serving"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+  canaryTrafficPercent: 10  # 10% traffic to canary
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: elyra-model-traffic-split
+  namespace: kserve-inference
+spec:
+  hosts:
+  - elyra-demo-model.kserve-inference.svc.cluster.local
+  http:
+  - match:
+    - headers:
+        canary:
+          exact: "true"
+    route:
+    - destination:
+        host: elyra-demo-model-canary-predictor-default.kserve-inference.svc.cluster.local
+      weight: 100
+  - route:
+    - destination:
+        host: elyra-demo-model-predictor-default.kserve-inference.svc.cluster.local
+      weight: 90
+    - destination:
+        host: elyra-demo-model-canary-predictor-default.kserve-inference.svc.cluster.local
+      weight: 10
+---
+apiVersion: v1
+kind: ServiceMonitor
+metadata:
+  name: kserve-inference-metrics
+  namespace: kserve-inference
+  labels:
+    app: kserve-metrics
+spec:
+  selector:
+    matchLabels:
+      app: kserve-inferenceservice
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: canary-config
+  namespace: kserve-inference
+data:
+  canary_rules.yaml: |
+    canary:
+      enabled: true
+      traffic_percentage: 10
+      success_criteria:
+        - metric: "request_success_rate"
+          threshold: 0.95
+        - metric: "request_duration_p99" 
+          threshold: 1000  # milliseconds
+        - metric: "error_rate"
+          threshold: 0.05
+      promotion_criteria:
+        - duration: "5m"
+          all_criteria_met: true
+      rollback_criteria:
+        - metric: "error_rate"
+          threshold: 0.1
+          duration: "2m"

@@ -1,0 +1,189 @@
+apiVersion: kubeflow.org/v1
+kind: Notebook
+metadata:
+  name: elyra-demo-notebook
+  namespace: elyra-demo-project
+  annotations:
+    notebooks.opendatahub.io/inject-oauth: "true"
+    notebooks.opendatahub.io/oauth-logout-url: "https://rhods-dashboard-redhat-ods-applications.apps.cluster.example.com/projects/elyra-demo-project"
+  labels:
+    app: elyra-demo-notebook
+    opendatahub.io/notebook-image: "true"
+spec:
+  template:
+    spec:
+      serviceAccountName: elyra-demo-notebook
+      containers:
+      - name: elyra-demo-notebook
+        image: quay.io/modh/odh-elyra-notebook:py3.9-elyra3.15.0-20230101
+        imagePullPolicy: Always
+        workingDir: /opt/app-root/src
+        env:
+        - name: NOTEBOOK_ARGS
+          value: |-
+            --ServerApp.port=8888
+            --ServerApp.token=''
+            --ServerApp.password=''
+            --ServerApp.base_url=/notebook/elyra-demo-project/elyra-demo-notebook
+            --ServerApp.quit_button=False
+            --ServerApp.tornado_settings={"user":"demo-user","hub_host":"https://rhods-dashboard-redhat-ods-applications.apps.cluster.example.com","hub_prefix":"/projects/elyra-demo-project"}
+        - name: JUPYTER_IMAGE
+          value: quay.io/modh/odh-elyra-notebook:py3.9-elyra3.15.0-20230101
+        - name: ELYRA_ENABLE_ANNOUNCEMENTS
+          value: "false"
+        - name: ELYRA_METADATA_NAMESPACE
+          value: "elyra-demo-project"
+        - name: KUBEFLOW_USERID
+          value: "demo-user"
+        - name: NB_PREFIX
+          value: /notebook/elyra-demo-project/elyra-demo-notebook
+        ports:
+        - containerPort: 8888
+          name: notebook-port
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+          limits:
+            cpu: "2"
+            memory: 4Gi
+        volumeMounts:
+        - mountPath: /opt/app-root/src
+          name: elyra-demo-notebook
+        - mountPath: /dev/shm
+          name: shm
+        - mountPath: /etc/jupyter/elyra
+          name: elyra-config
+      volumes:
+      - name: elyra-demo-notebook
+        persistentVolumeClaim:
+          claimName: elyra-demo-notebook
+      - emptyDir:
+          medium: Memory
+        name: shm
+      - name: elyra-config
+        configMap:
+          name: elyra-runtime-config
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: elyra-demo-notebook
+  namespace: elyra-demo-project
+  labels:
+    opendatahub.io/notebook-name: elyra-demo-notebook
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: gp3-csi
+  volumeMode: Filesystem
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: elyra-demo-notebook
+  namespace: elyra-demo-project
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elyra-demo-notebook
+  namespace: elyra-demo-project
+  labels:
+    app: elyra-demo-notebook
+spec:
+  ports:
+  - name: notebook-port
+    port: 8888
+    protocol: TCP
+    targetPort: 8888
+  selector:
+    app: elyra-demo-notebook
+  type: ClusterIP
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: elyra-demo-notebook
+  namespace: elyra-demo-project
+  annotations:
+    openshift.io/host.generated: "true"
+    haproxy.router.openshift.io/timeout: 600s
+spec:
+  host: elyra-demo-notebook-elyra-demo-project.apps.cluster.example.com
+  port:
+    targetPort: notebook-port
+  tls:
+    insecureEdgeTerminationPolicy: Redirect
+    termination: edge
+  to:
+    kind: Service
+    name: elyra-demo-notebook
+    weight: 100
+  wildcardPolicy: None
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elyra-runtime-config
+  namespace: elyra-demo-project
+data:
+  runtimes.json: |
+    {
+      "display_name": "Data Science Pipelines",
+      "schema_name": "kfp",
+      "metadata": {
+        "description": "OpenShift AI Data Science Pipelines Runtime",
+        "api_endpoint": "https://ds-pipeline-dspa-elyra-demo-project.apps.cluster.example.com",
+        "api_username": "",
+        "api_password": "",
+        "engine": "Argo",
+        "namespace": "elyra-demo-project",
+        "cos_endpoint": "http://ds-pipeline-minio-elyra-demo-project.svc.cluster.local:9000",
+        "cos_username": "minio",
+        "cos_password": "minio123",
+        "cos_bucket": "mlpipeline",
+        "tags": ["openshift-ai", "kubeflow", "demo"],
+        "runtime_type": "KUBEFLOW_PIPELINES",
+        "auth_type": "KUBERNETES_TOKEN"
+      }
+    }
+  
+  pipeline_defaults.json: |
+    {
+      "runtime_image": "quay.io/modh/runtime-images:runtime-datascience-ubi9-python-3.9-2023c",
+      "cpu_limit": "1",
+      "memory_limit": "2Gi",
+      "cpu_request": "100m",
+      "memory_request": "512Mi",
+      "env_vars": [
+        {"name": "ELYRA_ENABLE_PIPELINE_INFO", "value": "true"},
+        {"name": "ELYRA_WRITABLE_CONTAINER_DIR", "value": "/tmp"}
+      ],
+      "volumes": [],
+      "kubernetes_secrets": [],
+      "kubernetes_tolerations": [],
+      "kubernetes_pod_annotations": {}
+    }
+  
+  component_catalogs.json: |
+    {
+      "catalogs": [
+        {
+          "display_name": "Elyra Examples",
+          "description": "Example components for Elyra pipelines",
+          "url": "https://raw.githubusercontent.com/elyra-ai/examples/main/component-catalog-connectors/kfp-examples-connector.json",
+          "runtime_type": "KUBEFLOW_PIPELINES"
+        },
+        {
+          "display_name": "OpenShift AI Components",
+          "description": "Reusable components for OpenShift AI",
+          "url": "https://raw.githubusercontent.com/opendatahub-io/data-science-pipelines/main/samples/component-catalog.json",
+          "runtime_type": "KUBEFLOW_PIPELINES"
+        }
+      ]
+    }

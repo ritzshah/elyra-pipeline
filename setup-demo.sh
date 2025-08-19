@@ -86,7 +86,26 @@ sleep 10
 
 # Step 2: Set up Data Science Pipelines
 echo "🔧 Setting up Data Science Pipelines..."
-wait_for_resource "deployment" "ds-pipeline-dspa" "$NAMESPACE" 600
+echo "⏳ Waiting for Data Science Pipelines to be ready (this may take several minutes)..."
+sleep 30
+# Wait for the DSPA to be ready instead of specific deployment
+echo "⏳ Checking DataSciencePipelinesApplication status..."
+timeout=600
+elapsed=0
+while [ $elapsed -lt $timeout ]; do
+    if oc get datasciencepipelinesapplication elyra-demo-dspa -n $NAMESPACE -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null | grep -q "True"; then
+        echo "✅ Data Science Pipelines are ready!"
+        break
+    fi
+    echo "   Still waiting for Data Science Pipelines... ($elapsed/${timeout}s)"
+    sleep 30
+    elapsed=$((elapsed + 30))
+done
+
+if [ $elapsed -ge $timeout ]; then
+    echo "⚠️  Data Science Pipelines deployment is taking longer than expected"
+    echo "   Continuing with setup, but pipelines may not be immediately available"
+fi
 
 # Step 3: Set up JupyterHub with Elyra
 echo "📓 Setting up JupyterHub with Elyra..."

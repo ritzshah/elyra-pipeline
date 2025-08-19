@@ -1,9 +1,10 @@
-apiVersion: datasciencepipelinesapplications.opendatahub.io/v1alpha1
+apiVersion: datasciencepipelinesapplications.opendatahub.io/v1
 kind: DataSciencePipelinesApplication
 metadata:
   name: elyra-demo-dspa
   namespace: elyra-demo-project
 spec:
+  dspVersion: v2
   apiServer:
     deploy: true
     image: registry.redhat.io/ubi8/ubi-minimal

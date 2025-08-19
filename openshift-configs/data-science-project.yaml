@@ -5,6 +5,14 @@ metadata:
   namespace: elyra-demo-project
 spec:
   dspVersion: v2
+  objectStorage:
+    minio:
+      deploy: true
+      bucket: "mlpipeline"
+      s3CredentialsSecret:
+        accessKey: "accesskey"
+        secretKey: "secretkey"
+        secretName: "mlpipeline-minio-artifact"
 ---
 apiVersion: v1
 kind: Namespace

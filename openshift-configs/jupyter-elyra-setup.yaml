@@ -195,7 +195,6 @@ metadata:
     openshift.io/host.generated: "true"
     haproxy.router.openshift.io/timeout: 600s
 spec:
-  host: elyra-demo-notebook-elyra-demo-project.apps.cluster.example.com
   port:
     targetPort: notebook-port
   tls:

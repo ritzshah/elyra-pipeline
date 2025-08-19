@@ -147,10 +147,15 @@ echo ""
 echo "🎉 Demo setup completed successfully!"
 echo "====================================="
 echo ""
+
+# Get actual route URLs
+ELYRA_URL=$(oc get route elyra-demo-notebook -n $NAMESPACE -o jsonpath='{.spec.host}' 2>/dev/null || echo "elyra-demo-notebook-$NAMESPACE.$CLUSTER_DOMAIN")
+DSPA_URL=$(oc get route ds-pipeline-md-elyra-demo-dspa -n $NAMESPACE -o jsonpath='{.spec.host}' 2>/dev/null || echo "ds-pipeline-dspa-$NAMESPACE.$CLUSTER_DOMAIN")
+
 echo "Access Information:"
 echo "📊 OpenShift AI Dashboard: https://rhods-dashboard-redhat-ods-applications.$CLUSTER_DOMAIN"
-echo "📓 JupyterLab (Elyra): https://elyra-demo-notebook-$NAMESPACE.$CLUSTER_DOMAIN"
-echo "🔧 Data Science Pipelines: https://ds-pipeline-dspa-$NAMESPACE.$CLUSTER_DOMAIN"
+echo "📓 JupyterLab (Elyra): https://$ELYRA_URL"
+echo "🔧 Data Science Pipelines: https://$DSPA_URL"
 echo "📈 Model Serving: Available through OpenShift AI Dashboard"
 echo ""
 echo "Getting Started:"

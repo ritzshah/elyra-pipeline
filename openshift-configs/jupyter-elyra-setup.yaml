@@ -24,6 +24,11 @@ spec:
           mkdir -p /tmp/jupyter-runtime /tmp/jupyter-data /tmp/xdg-runtime
           chmod 755 /tmp/jupyter-runtime /tmp/jupyter-data /tmp/xdg-runtime
           
+          # Create Elyra metadata directories
+          mkdir -p /opt/app-root/src/.local/share/jupyter/metadata/runtimes
+          mkdir -p /opt/app-root/src/.local/share/jupyter/metadata/code-snippets
+          mkdir -p /opt/app-root/src/.local/share/jupyter/metadata/component-catalogs
+          
           # Install Elyra if not present
           pip install --user elyra[all]==3.15.0 || echo "Elyra installation attempted"
           
@@ -80,8 +85,8 @@ spec:
           name: elyra-demo-notebook
         - mountPath: /dev/shm
           name: shm
-        - mountPath: /etc/jupyter/elyra
-          name: elyra-config
+        - mountPath: /opt/app-root/src/.local/share/jupyter/metadata/runtimes
+          name: elyra-runtime-config
         - mountPath: /tmp
           name: tmp-volume
       volumes:
@@ -93,7 +98,7 @@ spec:
           medium: Memory
       - name: tmp-volume
         emptyDir: {}
-      - name: elyra-config
+      - name: elyra-runtime-config
         configMap:
           name: elyra-runtime-config
 ---
@@ -212,30 +217,25 @@ metadata:
   name: elyra-runtime-config
   namespace: elyra-demo-project
 data:
-  runtimes.json: |
+  data-science-pipelines.json: |
     {
-      "runtimes": [
-        {
-          "name": "data-science-pipelines",
-          "display_name": "Data Science Pipelines",
-          "schema_name": "kfp",
-          "metadata": {
-            "description": "OpenShift AI Data Science Pipelines Runtime",
-            "api_endpoint": "http://ds-pipeline-elyra-demo-dspa.elyra-demo-project.svc.cluster.local:8888",
-            "api_username": "",
-            "api_password": "",
-            "engine": "Argo",
-            "namespace": "elyra-demo-project",
-            "cos_endpoint": "http://ds-pipeline-minio-elyra-demo-dspa.elyra-demo-project.svc.cluster.local:9000",
-            "cos_username": "minio",
-            "cos_password": "minio123",
-            "cos_bucket": "mlpipeline",
-            "tags": ["openshift-ai", "kubeflow", "demo"],
-            "runtime_type": "KUBEFLOW_PIPELINES",
-            "auth_type": "KUBERNETES_TOKEN"
-          }
-        }
-      ]
+      "display_name": "Data Science Pipelines",
+      "schema_name": "kfp",
+      "metadata": {
+        "description": "OpenShift AI Data Science Pipelines Runtime",
+        "api_endpoint": "http://ds-pipeline-elyra-demo-dspa.elyra-demo-project.svc.cluster.local:8888",
+        "api_username": "",
+        "api_password": "",
+        "engine": "Argo",
+        "namespace": "elyra-demo-project",
+        "cos_endpoint": "http://ds-pipeline-minio-elyra-demo-dspa.elyra-demo-project.svc.cluster.local:9000",
+        "cos_username": "minio",
+        "cos_password": "minio123",
+        "cos_bucket": "mlpipeline",
+        "tags": ["openshift-ai", "kubeflow", "demo"],
+        "runtime_type": "KUBEFLOW_PIPELINES",
+        "auth_type": "KUBERNETES_TOKEN"
+      }
     }
   
   pipeline_defaults.json: |

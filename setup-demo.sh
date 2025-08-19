@@ -121,7 +121,7 @@ apply_yaml "kserve/sklearn-inference-service.yaml"
 apply_yaml "kserve/autoscaling-config.yaml"
 
 # Step 6: Set up vLLM (optional, requires GPU nodes)
-if oc get nodes -l node-role.kubernetes.io/gpu --no-headers | grep -q gpu; then
+if oc get nodes --show-labels | grep -q nvidia.com/gpu || oc get nodes -l accelerator --no-headers 2>/dev/null | wc -l | grep -q -v '^0$'; then
     echo "🔥 GPU nodes detected, setting up vLLM..."
     apply_yaml "vllm/vllm-deployment.yaml"
     apply_yaml "vllm/vllm-optimization-config.yaml"
@@ -168,7 +168,7 @@ echo "✅ Model Serving: KServe with auto-scaling"
 echo "✅ Monitoring: Prometheus metrics configured"
 
 # Check GPU setup
-if oc get nodes -l node-role.kubernetes.io/gpu --no-headers | grep -q gpu; then
+if oc get nodes --show-labels | grep -q nvidia.com/gpu || oc get nodes -l accelerator --no-headers 2>/dev/null | wc -l | grep -q -v '^0$'; then
     echo "✅ vLLM: Ready for LLM inference (GPU enabled)"
 else
     echo "⚠️  vLLM: Not configured (requires GPU nodes)"

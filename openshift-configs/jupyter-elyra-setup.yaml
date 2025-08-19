@@ -13,11 +13,18 @@ spec:
   template:
     spec:
       serviceAccountName: elyra-demo-notebook
+      securityContext:
+        fsGroup: 100
+        supplementalGroups: [100]
       containers:
       - name: elyra-demo-notebook
         image: quay.io/elyra/elyra:3.15.0
         imagePullPolicy: Always
         workingDir: /opt/app-root/src
+        securityContext:
+          runAsUser: 1000920000
+          runAsGroup: 100
+          allowPrivilegeEscalation: false
         env:
         - name: NOTEBOOK_ARGS
           value: |-

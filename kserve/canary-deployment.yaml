@@ -2,7 +2,7 @@ apiVersion: serving.kserve.io/v1beta1
 kind: InferenceService
 metadata:
   name: elyra-demo-model-canary
-  namespace: kserve-inference
+  namespace: elyra-demo-project
   annotations:
     serving.kserve.io/deploymentMode: "Serverless"
     autoscaling.knative.dev/minScale: "0"
@@ -36,10 +36,10 @@ apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
   name: elyra-model-traffic-split
-  namespace: kserve-inference
+  namespace: elyra-demo-project
 spec:
   hosts:
-  - elyra-demo-model.kserve-inference.svc.cluster.local
+  - elyra-demo-model.elyra-demo-project.svc.cluster.local
   http:
   - match:
     - headers:
@@ -47,21 +47,21 @@ spec:
           exact: "true"
     route:
     - destination:
-        host: elyra-demo-model-canary-predictor-default.kserve-inference.svc.cluster.local
+        host: elyra-demo-model-canary-predictor-default.elyra-demo-project.svc.cluster.local
       weight: 100
   - route:
     - destination:
-        host: elyra-demo-model-predictor-default.kserve-inference.svc.cluster.local
+        host: elyra-demo-model-predictor-default.elyra-demo-project.svc.cluster.local
       weight: 90
     - destination:
-        host: elyra-demo-model-canary-predictor-default.kserve-inference.svc.cluster.local
+        host: elyra-demo-model-canary-predictor-default.elyra-demo-project.svc.cluster.local
       weight: 10
 ---
 apiVersion: v1
 kind: ServiceMonitor
 metadata:
   name: kserve-inference-metrics
-  namespace: kserve-inference
+  namespace: elyra-demo-project
   labels:
     app: kserve-metrics
 spec:
@@ -77,7 +77,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: canary-config
-  namespace: kserve-inference
+  namespace: elyra-demo-project
 data:
   canary_rules.yaml: |
     canary:

@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: kserve-autoscaling-config
-  namespace: kserve-inference
+  namespace: elyra-demo-project
 data:
   autoscaling.yaml: |
     # KServe Autoscaling Configuration for Elyra Demo
@@ -63,7 +63,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: elyra-model-hpa
-  namespace: kserve-inference
+  namespace: elyra-demo-project
 spec:
   scaleTargetRef:
     apiVersion: serving.kserve.io/v1beta1
@@ -115,7 +115,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: monitoring-config
-  namespace: kserve-inference
+  namespace: elyra-demo-project
 data:
   prometheus.yml: |
     global:

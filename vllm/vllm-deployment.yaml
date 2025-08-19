@@ -2,7 +2,7 @@ apiVersion: serving.kserve.io/v1beta1
 kind: InferenceService
 metadata:
   name: vllm-llama-model
-  namespace: kserve-inference
+  namespace: elyra-demo-project
   annotations:
     serving.kserve.io/deploymentMode: "RawDeployment"
     serving.kserve.io/autoscalerClass: "hpa"
@@ -91,7 +91,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: llm-models-pvc
-  namespace: kserve-inference
+  namespace: elyra-demo-project
 spec:
   accessModes:
   - ReadWriteOnce
@@ -104,7 +104,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: huggingface-secret
-  namespace: kserve-inference
+  namespace: elyra-demo-project
 type: Opaque
 data:
   token: ""  # Base64 encoded HuggingFace token
@@ -113,7 +113,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: vllm-service
-  namespace: kserve-inference
+  namespace: elyra-demo-project
   labels:
     app: vllm-llama-model
 spec:

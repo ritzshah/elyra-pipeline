@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: vllm-monitoring-config
-  namespace: kserve-inference
+  namespace: elyra-demo-project
 data:
   prometheus_config.yml: |
     global:
@@ -109,7 +109,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: grafana-vllm-dashboard
-  namespace: kserve-inference
+  namespace: elyra-demo-project
   labels:
     grafana_dashboard: "1"
 data:
@@ -318,7 +318,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: gpu-exporter
-  namespace: kserve-inference
+  namespace: elyra-demo-project
 spec:
   replicas: 1
   selector:
@@ -365,7 +365,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: gpu-exporter
-  namespace: kserve-inference
+  namespace: elyra-demo-project
   labels:
     app: gpu-exporter
 spec:
@@ -380,7 +380,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: vllm-monitoring
-  namespace: kserve-inference
+  namespace: elyra-demo-project
   labels:
     app: vllm-monitoring
 spec:
@@ -396,7 +396,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor  
 metadata:
   name: gpu-monitoring
-  namespace: kserve-inference
+  namespace: elyra-demo-project
   labels:
     app: gpu-monitoring
 spec:

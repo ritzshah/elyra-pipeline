@@ -13,18 +13,11 @@ spec:
   template:
     spec:
       serviceAccountName: elyra-demo-notebook
-      securityContext:
-        fsGroup: 100
-        supplementalGroups: [100]
       containers:
       - name: elyra-demo-notebook
         image: quay.io/elyra/elyra:3.15.0
         imagePullPolicy: Always
         workingDir: /opt/app-root/src
-        securityContext:
-          runAsUser: 1000920000
-          runAsGroup: 100
-          allowPrivilegeEscalation: false
         env:
         - name: NOTEBOOK_ARGS
           value: |-
@@ -89,9 +82,59 @@ spec:
   storageClassName: gp3-csi
   volumeMode: Filesystem
 ---
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: elyra-notebook-scc
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegedContainer: false
+allowedCapabilities: null
+defaultAddCapabilities: null
+fsGroup:
+  type: RunAsAny
+groups: []
+priority: null
+readOnlyRootFilesystem: false
+requiredDropCapabilities:
+- KILL
+- MKNOD
+- SETUID
+- SETGID
+runAsUser:
+  type: RunAsAny
+seLinuxContext:
+  type: MustRunAs
+supplementalGroups:
+  type: RunAsAny
+users: []
+volumes:
+- configMap
+- downwardAPI
+- emptyDir
+- persistentVolumeClaim
+- projected
+- secret
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
+  name: elyra-demo-notebook
+  namespace: elyra-demo-project
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: elyra-notebook-scc-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:elyra-notebook-scc
+subjects:
+- kind: ServiceAccount
   name: elyra-demo-notebook
   namespace: elyra-demo-project
 ---

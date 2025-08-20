@@ -26,6 +26,14 @@
                 {
                   "env_var": "EXPERIMENT_NAME",
                   "value": "elyra_ml_demo"
+                },
+                {
+                  "env_var": "ELYRA_BOOTSTRAP_SCRIPT_URL",
+                  "value": "https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/elyra/kfp/bootstrapper.py"
+                },
+                {
+                  "env_var": "ELYRA_REQUIREMENTS_URL",
+                  "value": "https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/etc/generic/requirements-elyra.txt"
                 }
               ],
               "kubernetes_pod_annotations": [],
@@ -36,7 +44,7 @@
               "mounted_volumes": [],
               "filename": "01-data-preparation.ipynb"
             },
-            "label": "Data Preparation",
+            "label": "data-preparation",
             "ui_data": {
               "label": "Data Preparation",
               "image": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><text y='20'>📊</text></svg>",
@@ -96,6 +104,14 @@
                 {
                   "env_var": "CROSS_VALIDATION_FOLDS",
                   "value": "5"
+                },
+                {
+                  "env_var": "ELYRA_BOOTSTRAP_SCRIPT_URL",
+                  "value": "https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/elyra/kfp/bootstrapper.py"
+                },
+                {
+                  "env_var": "ELYRA_REQUIREMENTS_URL",
+                  "value": "https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/etc/generic/requirements-elyra.txt"
                 }
               ],
               "kubernetes_pod_annotations": [],
@@ -106,7 +122,7 @@
               "mounted_volumes": [],
               "filename": "02-model-training.ipynb"
             },
-            "label": "Model Training",
+            "label": "model-training",
             "ui_data": {
               "label": "Model Training",
               "image": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><text y='20'>🤖</text></svg>",
@@ -168,6 +184,14 @@
                 {
                   "env_var": "PERFORMANCE_THRESHOLD",
                   "value": "0.8"
+                },
+                {
+                  "env_var": "ELYRA_BOOTSTRAP_SCRIPT_URL",
+                  "value": "https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/elyra/kfp/bootstrapper.py"
+                },
+                {
+                  "env_var": "ELYRA_REQUIREMENTS_URL",
+                  "value": "https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/etc/generic/requirements-elyra.txt"
                 }
               ],
               "kubernetes_pod_annotations": [],
@@ -178,7 +202,7 @@
               "mounted_volumes": [],
               "filename": "03-model-evaluation.ipynb"
             },
-            "label": "Model Evaluation",
+            "label": "model-evaluation",
             "ui_data": {
               "label": "Model Evaluation",
               "image": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><text y='20'>📈</text></svg>",
@@ -243,9 +267,7 @@
             "env_vars": [
               {"name": "ELYRA_ENABLE_PIPELINE_INFO", "value": "true"},
               {"name": "ELYRA_WRITABLE_CONTAINER_DIR", "value": "/tmp"},
-              {"name": "ELYRA_RUN_NAME", "value": "elyra-ml-demo"},
-              {"name": "ELYRA_BOOTSTRAP_SCRIPT_URL", "value": "https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/elyra/kfp/bootstrapper.py"},
-              {"name": "ELYRA_REQUIREMENTS_URL", "value": "https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/etc/generic/requirements-elyra.txt"}
+              {"name": "ELYRA_RUN_NAME", "value": "elyra-ml-demo"}
             ],
             "runtime_image": "quay.io/modh/runtime-images:runtime-datascience-ubi9-python-3.9-2023c"
           }

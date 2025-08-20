@@ -1,0 +1,200 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: elyra-ml-demo-pipeline-
+  labels:
+    pipelines.kubeflow.org/kfp_sdk_version: 2.0.0
+spec:
+  entrypoint: elyra-ml-demo-pipeline
+  templates:
+  - name: elyra-ml-demo-pipeline
+    dag:
+      tasks:
+      - name: data-preparation
+        template: data-preparation-component
+      - name: model-training
+        template: model-training-component
+        depends: data-preparation
+        arguments:
+          artifacts:
+          - name: train-data
+            from: "{{tasks.data-preparation.outputs.artifacts.train-data}}"
+          - name: test-data
+            from: "{{tasks.data-preparation.outputs.artifacts.test-data}}"
+          - name: preprocessing-artifacts
+            from: "{{tasks.data-preparation.outputs.artifacts.preprocessing-artifacts}}"
+      - name: model-evaluation
+        template: model-evaluation-component
+        depends: model-training
+        arguments:
+          artifacts:
+          - name: best-model
+            from: "{{tasks.model-training.outputs.artifacts.best-model}}"
+          - name: model-metadata
+            from: "{{tasks.model-training.outputs.artifacts.model-metadata}}"
+          - name: test-data
+            from: "{{tasks.data-preparation.outputs.artifacts.test-data}}"
+
+  # Data Preparation Component
+  - name: data-preparation-component
+    container:
+      image: quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016
+      command: [papermill]
+      args:
+      - /workspace/01-data-preparation.ipynb
+      - /tmp/outputs/01-data-preparation-output.ipynb
+      - -k
+      - python3
+      workingDir: /workspace
+      env:
+      - name: EXPERIMENT_NAME
+        value: "elyra_ml_demo"
+      - name: ELYRA_ENABLE_PIPELINE_INFO
+        value: "true"
+      - name: ELYRA_WRITABLE_CONTAINER_DIR
+        value: "/tmp"
+      resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
+        limits:
+          cpu: "1"
+          memory: 2Gi
+      volumeMounts:
+      - name: workspace
+        mountPath: /workspace
+    inputs:
+      artifacts:
+      - name: notebook
+        path: /workspace/01-data-preparation.ipynb
+    outputs:
+      artifacts:
+      - name: train-data
+        path: /tmp/train_data.csv
+      - name: test-data
+        path: /tmp/test_data.csv
+      - name: preprocessing-artifacts
+        path: /tmp/preprocessing_artifacts
+      - name: processed-data
+        path: /tmp/processed_data.csv
+      - name: quality-report
+        path: /tmp/data_quality_report.json
+      - name: output-notebook
+        path: /tmp/outputs/01-data-preparation-output.ipynb
+    volumes:
+    - name: workspace
+      emptyDir: {}
+
+  # Model Training Component
+  - name: model-training-component
+    container:
+      image: quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016
+      command: [papermill]
+      args:
+      - /workspace/02-model-training.ipynb
+      - /tmp/outputs/02-model-training-output.ipynb
+      - -k
+      - python3
+      workingDir: /workspace
+      env:
+      - name: EXPERIMENT_NAME
+        value: "elyra_ml_demo"
+      - name: CROSS_VALIDATION_FOLDS
+        value: "5"
+      - name: ELYRA_ENABLE_PIPELINE_INFO
+        value: "true"
+      - name: ELYRA_WRITABLE_CONTAINER_DIR
+        value: "/tmp"
+      resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
+        limits:
+          cpu: "2"
+          memory: 4Gi
+      volumeMounts:
+      - name: workspace
+        mountPath: /workspace
+    inputs:
+      artifacts:
+      - name: notebook
+        path: /workspace/02-model-training.ipynb
+      - name: train-data
+        path: /tmp/train_data.csv
+      - name: test-data
+        path: /tmp/test_data.csv
+      - name: preprocessing-artifacts
+        path: /tmp/preprocessing_artifacts
+    outputs:
+      artifacts:
+      - name: best-model
+        path: /tmp/models/best_model.pkl
+      - name: model-metadata
+        path: /tmp/models/model_metadata.json
+      - name: model-results
+        path: /tmp/models/model_results.json
+      - name: all-models
+        path: /tmp/models
+      - name: output-notebook
+        path: /tmp/outputs/02-model-training-output.ipynb
+    volumes:
+    - name: workspace
+      emptyDir: {}
+
+  # Model Evaluation Component
+  - name: model-evaluation-component
+    container:
+      image: quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016
+      command: [papermill]
+      args:
+      - /workspace/03-model-evaluation.ipynb
+      - /tmp/outputs/03-model-evaluation-output.ipynb
+      - -k
+      - python3
+      workingDir: /workspace
+      env:
+      - name: PERFORMANCE_THRESHOLD
+        value: "0.8"
+      - name: ELYRA_ENABLE_PIPELINE_INFO
+        value: "true"
+      - name: ELYRA_WRITABLE_CONTAINER_DIR
+        value: "/tmp"
+      resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
+        limits:
+          cpu: "1"
+          memory: 2Gi
+      volumeMounts:
+      - name: workspace
+        mountPath: /workspace
+    inputs:
+      artifacts:
+      - name: notebook
+        path: /workspace/03-model-evaluation.ipynb
+      - name: best-model
+        path: /tmp/models/best_model.pkl
+      - name: model-metadata
+        path: /tmp/models/model_metadata.json
+      - name: test-data
+        path: /tmp/test_data.csv
+    outputs:
+      artifacts:
+      - name: evaluation-report
+        path: /tmp/evaluation/evaluation_report.json
+      - name: model-registry
+        path: /tmp/model_registry
+      - name: deployment-status
+        path: /tmp/deployment_status.json
+      - name: output-notebook
+        path: /tmp/outputs/03-model-evaluation-output.ipynb
+    volumes:
+    - name: workspace
+      emptyDir: {}
+
+  # Global pipeline configuration
+  serviceAccountName: pipeline-runner
+  ttlStrategy:
+    secondsAfterCompletion: 86400
+  activeDeadlineSeconds: 3600

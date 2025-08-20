@@ -322,7 +322,12 @@
             }
           }
         }
-      ]
+      ],
+      "app_data": {
+        "runtime_config": "Data Science Pipelines",
+        "name": "elyra-ml-demo-pipeline",
+        "description": "End-to-end ML pipeline with Elyra on OpenShift AI including model deployment"
+      }
     }
   ],
   "schemas": []

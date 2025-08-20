@@ -1,0 +1,222 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: elyra-ml-demo-pipeline-
+  annotations:
+    pipelines.kubeflow.org/kfp_sdk_version: 2.9.0
+    pipelines.kubeflow.org/pipeline_compilation_time: '2024-08-20T00:00:00'
+    pipelines.kubeflow.org/pipeline_spec: |
+      {
+        "components": {
+          "comp-data-preparation": {
+            "executorLabel": "exec-data-preparation"
+          },
+          "comp-model-training": {
+            "executorLabel": "exec-model-training"
+          },
+          "comp-model-evaluation": {
+            "executorLabel": "exec-model-evaluation"
+          }
+        },
+        "deploymentSpec": {
+          "executors": {
+            "exec-data-preparation": {
+              "container": {
+                "args": [
+                  "sh -c \"mkdir -p ./jupyter-work-dir && cd ./jupyter-work-dir\"",
+                  "sh -c \"echo 'Downloading https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/elyra/kfp/bootstrapper.py' && curl --fail -H 'Cache-Control: no-cache' -L https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/elyra/kfp/bootstrapper.py --output bootstrapper.py\"",
+                  "sh -c \"echo 'Downloading https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/etc/generic/requirements-elyra.txt' && curl --fail -H 'Cache-Control: no-cache' -L https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/etc/generic/requirements-elyra.txt --output requirements-elyra.txt\"",
+                  "sh -c \"python3 -m pip install packaging && python3 -m pip freeze > requirements-current.txt && python3 bootstrapper.py --pipeline-name 'elyra-ml-demo-pipeline' --cos-endpoint 'http://ds-pipeline-minio-elyra-demo-dspa.elyra-demo-project.svc.cluster.local:9000' --cos-bucket 'mlpipeline' --cos-directory 'elyra-ml-demo-pipeline-{{workflow.uid}}' --cos-dependencies-archive '01-data-preparation-data-preparation-node.tar.gz' --file 'notebooks/01-data-preparation.ipynb' --outputs 'processed_data.csv;train_data.csv;test_data.csv;preprocessing_artifacts/' \""
+                ],
+                "command": ["sh", "-c"],
+                "env": [
+                  {"name": "EXPERIMENT_NAME", "value": "elyra_ml_demo"},
+                  {"name": "ELYRA_RUNTIME_ENV", "value": "kfp"},
+                  {"name": "ELYRA_ENABLE_PIPELINE_INFO", "value": "True"},
+                  {"name": "ELYRA_WRITABLE_CONTAINER_DIR", "value": "/tmp"},
+                  {"name": "ELYRA_RUN_NAME", "value": "{{workflow.uid}}"}
+                ],
+                "image": "quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016"
+              }
+            },
+            "exec-model-training": {
+              "container": {
+                "args": [
+                  "sh -c \"mkdir -p ./jupyter-work-dir && cd ./jupyter-work-dir\"",
+                  "sh -c \"echo 'Downloading https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/elyra/kfp/bootstrapper.py' && curl --fail -H 'Cache-Control: no-cache' -L https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/elyra/kfp/bootstrapper.py --output bootstrapper.py\"",
+                  "sh -c \"echo 'Downloading https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/etc/generic/requirements-elyra.txt' && curl --fail -H 'Cache-Control: no-cache' -L https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/etc/generic/requirements-elyra.txt --output requirements-elyra.txt\"",
+                  "sh -c \"python3 -m pip install packaging && python3 -m pip freeze > requirements-current.txt && python3 bootstrapper.py --pipeline-name 'elyra-ml-demo-pipeline' --cos-endpoint 'http://ds-pipeline-minio-elyra-demo-dspa.elyra-demo-project.svc.cluster.local:9000' --cos-bucket 'mlpipeline' --cos-directory 'elyra-ml-demo-pipeline-{{workflow.uid}}' --cos-dependencies-archive '02-model-training-model-training-node.tar.gz' --file 'notebooks/02-model-training.ipynb' --inputs 'test_data.csv;processed_data.csv;preprocessing_artifacts/;train_data.csv' --outputs 'models/;best_model.pkl;model_metadata.json;model_results.json' \""
+                ],
+                "command": ["sh", "-c"],
+                "env": [
+                  {"name": "EXPERIMENT_NAME", "value": "elyra_ml_demo"},
+                  {"name": "CROSS_VALIDATION_FOLDS", "value": "5"},
+                  {"name": "ELYRA_RUNTIME_ENV", "value": "kfp"},
+                  {"name": "ELYRA_ENABLE_PIPELINE_INFO", "value": "True"},
+                  {"name": "ELYRA_WRITABLE_CONTAINER_DIR", "value": "/tmp"},
+                  {"name": "ELYRA_RUN_NAME", "value": "{{workflow.uid}}"}
+                ],
+                "image": "quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016"
+              }
+            },
+            "exec-model-evaluation": {
+              "container": {
+                "args": [
+                  "sh -c \"mkdir -p ./jupyter-work-dir && cd ./jupyter-work-dir\"",
+                  "sh -c \"echo 'Downloading https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/elyra/kfp/bootstrapper.py' && curl --fail -H 'Cache-Control: no-cache' -L https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/elyra/kfp/bootstrapper.py --output bootstrapper.py\"",
+                  "sh -c \"echo 'Downloading https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/etc/generic/requirements-elyra.txt' && curl --fail -H 'Cache-Control: no-cache' -L https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/etc/generic/requirements-elyra.txt --output requirements-elyra.txt\"",
+                  "sh -c \"python3 -m pip install packaging && python3 -m pip freeze > requirements-current.txt && python3 bootstrapper.py --pipeline-name 'elyra-ml-demo-pipeline' --cos-endpoint 'http://ds-pipeline-minio-elyra-demo-dspa.elyra-demo-project.svc.cluster.local:9000' --cos-bucket 'mlpipeline' --cos-directory 'elyra-ml-demo-pipeline-{{workflow.uid}}' --cos-dependencies-archive '03-model-evaluation-model-evaluation-node.tar.gz' --file 'notebooks/03-model-evaluation.ipynb' --inputs 'test_data.csv;processed_data.csv;preprocessing_artifacts/;best_model.pkl;train_data.csv;model_metadata.json;models/;model_results.json' --outputs 'evaluation/;model_registry/;evaluation_report.json' \""
+                ],
+                "command": ["sh", "-c"],
+                "env": [
+                  {"name": "PERFORMANCE_THRESHOLD", "value": "0.8"},
+                  {"name": "ELYRA_RUNTIME_ENV", "value": "kfp"},
+                  {"name": "ELYRA_ENABLE_PIPELINE_INFO", "value": "True"},
+                  {"name": "ELYRA_WRITABLE_CONTAINER_DIR", "value": "/tmp"},
+                  {"name": "ELYRA_RUN_NAME", "value": "{{workflow.uid}}"}
+                ],
+                "image": "quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016"
+              }
+            }
+          }
+        },
+        "pipelineInfo": {
+          "name": "elyra-ml-demo-pipeline"
+        },
+        "root": {
+          "dag": {
+            "tasks": {
+              "data-preparation": {
+                "cachingOptions": {"enableCache": true},
+                "componentRef": {"name": "comp-data-preparation"},
+                "taskInfo": {"name": "Data Preparation"}
+              },
+              "model-training": {
+                "cachingOptions": {"enableCache": true},
+                "componentRef": {"name": "comp-model-training"},
+                "dependentTasks": ["data-preparation"],
+                "taskInfo": {"name": "Model Training"}
+              },
+              "model-evaluation": {
+                "cachingOptions": {"enableCache": true},
+                "componentRef": {"name": "comp-model-evaluation"},
+                "dependentTasks": ["model-training"],
+                "taskInfo": {"name": "Model Evaluation"}
+              }
+            }
+          }
+        },
+        "schemaVersion": "2.1.0",
+        "sdkVersion": "kfp-2.9.0"
+      }
+  labels:
+    pipelines.kubeflow.org/kfp_sdk_version: 2.9.0
+spec:
+  entrypoint: elyra-ml-demo-pipeline
+  templates:
+  - name: elyra-ml-demo-pipeline
+    dag:
+      tasks:
+      - name: data-preparation
+        template: data-preparation
+      - name: model-training
+        template: model-training
+        dependencies: [data-preparation]
+      - name: model-evaluation
+        template: model-evaluation
+        dependencies: [model-training]
+  
+  - name: data-preparation
+    container:
+      image: quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016
+      command: [sh, -c]
+      args:
+      - |
+        mkdir -p ./jupyter-work-dir && cd ./jupyter-work-dir
+        echo 'Downloading https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/elyra/kfp/bootstrapper.py' && curl --fail -H 'Cache-Control: no-cache' -L https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/elyra/kfp/bootstrapper.py --output bootstrapper.py
+        echo 'Downloading https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/etc/generic/requirements-elyra.txt' && curl --fail -H 'Cache-Control: no-cache' -L https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/etc/generic/requirements-elyra.txt --output requirements-elyra.txt
+        python3 -m pip install packaging && python3 -m pip freeze > requirements-current.txt && python3 bootstrapper.py --pipeline-name 'elyra-ml-demo-pipeline' --cos-endpoint 'http://ds-pipeline-minio-elyra-demo-dspa.elyra-demo-project.svc.cluster.local:9000' --cos-bucket 'mlpipeline' --cos-directory 'elyra-ml-demo-pipeline-{{workflow.uid}}' --cos-dependencies-archive '01-data-preparation-data-preparation-node.tar.gz' --file 'notebooks/01-data-preparation.ipynb' --outputs 'processed_data.csv;train_data.csv;test_data.csv;preprocessing_artifacts/'
+      env:
+      - name: EXPERIMENT_NAME
+        value: elyra_ml_demo
+      - name: ELYRA_RUNTIME_ENV
+        value: kfp
+      - name: ELYRA_ENABLE_PIPELINE_INFO
+        value: "True"
+      - name: ELYRA_WRITABLE_CONTAINER_DIR
+        value: /tmp
+      - name: ELYRA_RUN_NAME
+        value: "{{workflow.uid}}"
+      metadata:
+        annotations:
+          elyra/node-file-name: notebooks/01-data-preparation.ipynb
+          elyra/pipeline-source: ml-pipeline.pipeline
+        labels:
+          elyra/experiment-name: elyra_ml_demo
+          elyra/node-name: Data_Preparation
+          elyra/node-type: notebook-script
+          elyra/pipeline-name: elyra-ml-demo-pipeline
+
+  - name: model-training
+    container:
+      image: quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016
+      command: [sh, -c]
+      args:
+      - |
+        mkdir -p ./jupyter-work-dir && cd ./jupyter-work-dir
+        echo 'Downloading https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/elyra/kfp/bootstrapper.py' && curl --fail -H 'Cache-Control: no-cache' -L https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/elyra/kfp/bootstrapper.py --output bootstrapper.py
+        echo 'Downloading https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/etc/generic/requirements-elyra.txt' && curl --fail -H 'Cache-Control: no-cache' -L https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/etc/generic/requirements-elyra.txt --output requirements-elyra.txt
+        python3 -m pip install packaging && python3 -m pip freeze > requirements-current.txt && python3 bootstrapper.py --pipeline-name 'elyra-ml-demo-pipeline' --cos-endpoint 'http://ds-pipeline-minio-elyra-demo-dspa.elyra-demo-project.svc.cluster.local:9000' --cos-bucket 'mlpipeline' --cos-directory 'elyra-ml-demo-pipeline-{{workflow.uid}}' --cos-dependencies-archive '02-model-training-model-training-node.tar.gz' --file 'notebooks/02-model-training.ipynb' --inputs 'test_data.csv;processed_data.csv;preprocessing_artifacts/;train_data.csv' --outputs 'models/;best_model.pkl;model_metadata.json;model_results.json'
+      env:
+      - name: EXPERIMENT_NAME
+        value: elyra_ml_demo
+      - name: CROSS_VALIDATION_FOLDS
+        value: "5"
+      - name: ELYRA_RUNTIME_ENV
+        value: kfp
+      - name: ELYRA_ENABLE_PIPELINE_INFO
+        value: "True"
+      - name: ELYRA_WRITABLE_CONTAINER_DIR
+        value: /tmp
+      - name: ELYRA_RUN_NAME
+        value: "{{workflow.uid}}"
+      metadata:
+        annotations:
+          elyra/node-file-name: notebooks/02-model-training.ipynb
+          elyra/pipeline-source: ml-pipeline.pipeline
+        labels:
+          elyra/experiment-name: elyra_ml_demo
+          elyra/node-name: Model_Training
+          elyra/node-type: notebook-script
+          elyra/pipeline-name: elyra-ml-demo-pipeline
+
+  - name: model-evaluation
+    container:
+      image: quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016
+      command: [sh, -c]
+      args:
+      - |
+        mkdir -p ./jupyter-work-dir && cd ./jupyter-work-dir
+        echo 'Downloading https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/elyra/kfp/bootstrapper.py' && curl --fail -H 'Cache-Control: no-cache' -L https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/elyra/kfp/bootstrapper.py --output bootstrapper.py
+        echo 'Downloading https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/etc/generic/requirements-elyra.txt' && curl --fail -H 'Cache-Control: no-cache' -L https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/etc/generic/requirements-elyra.txt --output requirements-elyra.txt
+        python3 -m pip install packaging && python3 -m pip freeze > requirements-current.txt && python3 bootstrapper.py --pipeline-name 'elyra-ml-demo-pipeline' --cos-endpoint 'http://ds-pipeline-minio-elyra-demo-dspa.elyra-demo-project.svc.cluster.local:9000' --cos-bucket 'mlpipeline' --cos-directory 'elyra-ml-demo-pipeline-{{workflow.uid}}' --cos-dependencies-archive '03-model-evaluation-model-evaluation-node.tar.gz' --file 'notebooks/03-model-evaluation.ipynb' --inputs 'test_data.csv;processed_data.csv;preprocessing_artifacts/;best_model.pkl;train_data.csv;model_metadata.json;models/;model_results.json' --outputs 'evaluation/;model_registry/;evaluation_report.json'
+      env:
+      - name: PERFORMANCE_THRESHOLD
+        value: "0.8"
+      - name: ELYRA_RUNTIME_ENV
+        value: kfp
+      - name: ELYRA_ENABLE_PIPELINE_INFO
+        value: "True"
+      - name: ELYRA_WRITABLE_CONTAINER_DIR
+        value: /tmp
+      - name: ELYRA_RUN_NAME
+        value: "{{workflow.uid}}"
+      metadata:
+        annotations:
+          elyra/node-file-name: notebooks/03-model-evaluation.ipynb
+          elyra/pipeline-source: ml-pipeline.pipeline
+        labels:
+          elyra/experiment-name: elyra_ml_demo
+          elyra/node-name: Model_Evaluation
+          elyra/node-type: notebook-script
+          elyra/pipeline-name: elyra-ml-demo-pipeline

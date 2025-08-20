@@ -1,0 +1,242 @@
+# PIPELINE DEFINITION
+# Name: elyra-ml-demo-pipeline
+# Description: End-to-end ML pipeline with Elyra on OpenShift AI
+# Inputs:
+# Outputs:
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: elyra-ml-demo-pipeline-
+  annotations:
+    pipelines.kubeflow.org/kfp_sdk_version: 2.0.0
+    pipelines.kubeflow.org/pipeline_compilation_time: '2024-01-01T00:00:00'
+    pipelines.kubeflow.org/pipeline_spec: '{"pipelineInfo": {"name": "elyra-ml-demo-pipeline"}, "root": {"dag": {"tasks": {"data-preparation": {"cachingOptions": {"enableCache": true}, "componentRef": {"name": "comp-data-preparation"}, "taskInfo": {"name": "data-preparation"}}, "model-evaluation": {"cachingOptions": {"enableCache": true}, "componentRef": {"name": "comp-model-evaluation"}, "dependentTasks": ["model-training"], "taskInfo": {"name": "model-evaluation"}}, "model-training": {"cachingOptions": {"enableCache": true}, "componentRef": {"name": "comp-model-training"}, "dependentTasks": ["data-preparation"], "taskInfo": {"name": "model-training"}}}}, "inputDefinitions": {}, "outputDefinitions": {}}, "components": {"comp-data-preparation": {"executorLabel": "exec-data-preparation", "outputDefinitions": {"artifacts": {"processed_data": {"artifactType": {"schemaTitle": "system.Artifact", "schemaVersion": "0.0.1"}}, "test_data": {"artifactType": {"schemaTitle": "system.Artifact", "schemaVersion": "0.0.1"}}, "train_data": {"artifactType": {"schemaTitle": "system.Artifact", "schemaVersion": "0.0.1"}}}}}, "comp-model-evaluation": {"executorLabel": "exec-model-evaluation", "inputDefinitions": {"artifacts": {"best_model": {"artifactType": {"schemaTitle": "system.Model", "schemaVersion": "0.0.1"}}, "test_data": {"artifactType": {"schemaTitle": "system.Artifact", "schemaVersion": "0.0.1"}}}}, "outputDefinitions": {"artifacts": {"evaluation_report": {"artifactType": {"schemaTitle": "system.Artifact", "schemaVersion": "0.0.1"}}}}}, "comp-model-training": {"executorLabel": "exec-model-training", "inputDefinitions": {"artifacts": {"test_data": {"artifactType": {"schemaTitle": "system.Artifact", "schemaVersion": "0.0.1"}}, "train_data": {"artifactType": {"schemaTitle": "system.Artifact", "schemaVersion": "0.0.1"}}}}, "outputDefinitions": {"artifacts": {"best_model": {"artifactType": {"schemaTitle": "system.Model", "schemaVersion": "0.0.1"}}}}}}, "deploymentSpec": {"executors": {"exec-data-preparation": {"container": {"args": ["--executor_input", "{{$}}", "--function_to_execute", "data_preparation"], "command": ["sh", "-c", "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'kfp==2.0.0' && \"$0\" \"$@\"\n", "sh", "-ec", "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n", "# Run data preparation notebook using papermill\nimport subprocess\nimport os\n\ndef data_preparation():\n    # Run the notebook using papermill\n    result = subprocess.run([\n        \"papermill\",\n        \"/opt/app-root/src/01-data-preparation.ipynb\",\n        \"/tmp/01-data-preparation-output.ipynb\",\n        \"-k\", \"python3\"\n    ], capture_output=True, text=True)\n    \n    if result.returncode != 0:\n        print(f\"Error: {result.stderr}\")\n        raise Exception(f\"Notebook execution failed: {result.stderr}\")\n    \n    print(\"Data preparation completed successfully\")\n    return \"success\"\n\nif __name__ == \"__main__\":\n    data_preparation()\n"], "image": "quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016", "resources": {"cpuLimit": 1.0, "memoryLimit": "2Gi"}}}, "exec-model-evaluation": {"container": {"args": ["--executor_input", "{{$}}", "--function_to_execute", "model_evaluation"], "command": ["sh", "-c", "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'kfp==2.0.0' && \"$0\" \"$@\"\n", "sh", "-ec", "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n", "# Run model evaluation notebook using papermill\nimport subprocess\nimport os\n\ndef model_evaluation():\n    # Run the notebook using papermill\n    result = subprocess.run([\n        \"papermill\",\n        \"/opt/app-root/src/03-model-evaluation.ipynb\",\n        \"/tmp/03-model-evaluation-output.ipynb\",\n        \"-k\", \"python3\"\n    ], capture_output=True, text=True)\n    \n    if result.returncode != 0:\n        print(f\"Error: {result.stderr}\")\n        raise Exception(f\"Notebook execution failed: {result.stderr}\")\n    \n    print(\"Model evaluation completed successfully\")\n    return \"success\"\n\nif __name__ == \"__main__\":\n    model_evaluation()\n"], "image": "quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016", "resources": {"cpuLimit": 1.0, "memoryLimit": "2Gi"}}}, "exec-model-training": {"container": {"args": ["--executor_input", "{{$}}", "--function_to_execute", "model_training"], "command": ["sh", "-c", "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'kfp==2.0.0' && \"$0\" \"$@\"\n", "sh", "-ec", "program_path=$(mktemp -d)\n\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\n_KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n", "# Run model training notebook using papermill\nimport subprocess\nimport os\n\ndef model_training():\n    # Run the notebook using papermill\n    result = subprocess.run([\n        \"papermill\",\n        \"/opt/app-root/src/02-model-training.ipynb\",\n        \"/tmp/02-model-training-output.ipynb\",\n        \"-k\", \"python3\"\n    ], capture_output=True, text=True)\n    \n    if result.returncode != 0:\n        print(f\"Error: {result.stderr}\")\n        raise Exception(f\"Notebook execution failed: {result.stderr}\")\n    \n    print(\"Model training completed successfully\")\n    return \"success\"\n\nif __name__ == \"__main__\":\n    model_training()\n"], "image": "quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016", "resources": {"cpuLimit": 2.0, "memoryLimit": "4Gi"}}}}}, "schemaVersion": "2.1.0", "sdkVersion": "kfp-2.0.0"}'
+  labels:
+    pipelines.kubeflow.org/kfp_sdk_version: 2.0.0
+spec:
+  entrypoint: elyra-ml-demo-pipeline
+  templates:
+  - name: elyra-ml-demo-pipeline
+    dag:
+      tasks:
+      - name: data-preparation
+        template: data-preparation
+      - name: model-training
+        template: model-training
+        dependencies: [data-preparation]
+      - name: model-evaluation
+        template: model-evaluation
+        dependencies: [model-training]
+  
+  - name: data-preparation
+    container:
+      image: quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016
+      command: ["/bin/bash", "-c"]
+      args:
+      - |
+        set -euxo pipefail
+        
+        # Ensure papermill is installed
+        pip install papermill
+        
+        # Copy notebooks to workspace
+        mkdir -p /workspace/notebooks
+        cp /opt/app-root/src/*.ipynb /workspace/notebooks/ || echo "No notebooks found to copy"
+        
+        # Create output directories
+        mkdir -p /tmp/outputs /tmp/data
+        
+        # Set environment variables
+        export EXPERIMENT_NAME="elyra_ml_demo"
+        export ELYRA_ENABLE_PIPELINE_INFO="true"
+        export ELYRA_WRITABLE_CONTAINER_DIR="/tmp"
+        
+        # Run data preparation notebook
+        if [ -f "/opt/app-root/src/01-data-preparation.ipynb" ]; then
+          papermill /opt/app-root/src/01-data-preparation.ipynb /tmp/outputs/01-data-preparation-output.ipynb -k python3
+        else
+          echo "Data preparation notebook not found"
+        fi
+        
+        # Verify outputs were created
+        ls -la /tmp/
+        echo "Data preparation completed"
+      workingDir: /opt/app-root/src
+      env:
+      - name: EXPERIMENT_NAME
+        value: "elyra_ml_demo"
+      - name: ELYRA_ENABLE_PIPELINE_INFO
+        value: "true"
+      - name: ELYRA_WRITABLE_CONTAINER_DIR
+        value: "/tmp"
+      resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
+        limits:
+          cpu: "1"
+          memory: 2Gi
+      volumeMounts:
+      - name: output-artifacts
+        mountPath: /tmp
+    outputs:
+      artifacts:
+      - name: train-data
+        path: /tmp/train_data.csv
+      - name: test-data
+        path: /tmp/test_data.csv
+      - name: processed-data
+        path: /tmp/processed_data.csv
+      - name: preprocessing-artifacts
+        path: /tmp/preprocessing_artifacts
+      - name: data-quality-report
+        path: /tmp/data_quality_report.json
+    volumes:
+    - name: output-artifacts
+      emptyDir: {}
+
+  - name: model-training
+    container:
+      image: quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016
+      command: ["/bin/bash", "-c"]
+      args:
+      - |
+        set -euxo pipefail
+        
+        # Ensure papermill is installed
+        pip install papermill
+        
+        # Create output directories
+        mkdir -p /tmp/outputs /tmp/models
+        
+        # Set environment variables
+        export EXPERIMENT_NAME="elyra_ml_demo"
+        export CROSS_VALIDATION_FOLDS="5"
+        export ELYRA_ENABLE_PIPELINE_INFO="true"
+        export ELYRA_WRITABLE_CONTAINER_DIR="/tmp"
+        
+        # Run model training notebook
+        if [ -f "/opt/app-root/src/02-model-training.ipynb" ]; then
+          papermill /opt/app-root/src/02-model-training.ipynb /tmp/outputs/02-model-training-output.ipynb -k python3
+        else
+          echo "Model training notebook not found"
+        fi
+        
+        # Verify outputs were created
+        ls -la /tmp/models/
+        echo "Model training completed"
+      workingDir: /opt/app-root/src
+      env:
+      - name: EXPERIMENT_NAME
+        value: "elyra_ml_demo"
+      - name: CROSS_VALIDATION_FOLDS
+        value: "5"
+      - name: ELYRA_ENABLE_PIPELINE_INFO
+        value: "true"
+      - name: ELYRA_WRITABLE_CONTAINER_DIR
+        value: "/tmp"
+      resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
+        limits:
+          cpu: "2"
+          memory: 4Gi
+      volumeMounts:
+      - name: output-artifacts
+        mountPath: /tmp
+    inputs:
+      artifacts:
+      - name: train-data
+        path: /tmp/train_data.csv
+      - name: test-data
+        path: /tmp/test_data.csv
+      - name: preprocessing-artifacts
+        path: /tmp/preprocessing_artifacts
+    outputs:
+      artifacts:
+      - name: best-model
+        path: /tmp/models/best_model.pkl
+      - name: model-metadata
+        path: /tmp/models/model_metadata.json
+      - name: model-results
+        path: /tmp/models/model_results.json
+      - name: all-models
+        path: /tmp/models
+    volumes:
+    - name: output-artifacts
+      emptyDir: {}
+
+  - name: model-evaluation
+    container:
+      image: quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016
+      command: ["/bin/bash", "-c"]
+      args:
+      - |
+        set -euxo pipefail
+        
+        # Ensure papermill is installed
+        pip install papermill
+        
+        # Create output directories
+        mkdir -p /tmp/outputs /tmp/evaluation /tmp/model_registry
+        
+        # Set environment variables
+        export PERFORMANCE_THRESHOLD="0.8"
+        export ELYRA_ENABLE_PIPELINE_INFO="true"
+        export ELYRA_WRITABLE_CONTAINER_DIR="/tmp"
+        
+        # Run model evaluation notebook
+        if [ -f "/opt/app-root/src/03-model-evaluation.ipynb" ]; then
+          papermill /opt/app-root/src/03-model-evaluation.ipynb /tmp/outputs/03-model-evaluation-output.ipynb -k python3
+        else
+          echo "Model evaluation notebook not found"
+        fi
+        
+        # Verify outputs were created
+        ls -la /tmp/evaluation/
+        ls -la /tmp/model_registry/
+        echo "Model evaluation completed"
+      workingDir: /opt/app-root/src
+      env:
+      - name: PERFORMANCE_THRESHOLD
+        value: "0.8"
+      - name: ELYRA_ENABLE_PIPELINE_INFO
+        value: "true"
+      - name: ELYRA_WRITABLE_CONTAINER_DIR
+        value: "/tmp"
+      resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
+        limits:
+          cpu: "1"
+          memory: 2Gi
+      volumeMounts:
+      - name: output-artifacts
+        mountPath: /tmp
+    inputs:
+      artifacts:
+      - name: best-model
+        path: /tmp/models/best_model.pkl
+      - name: model-metadata
+        path: /tmp/models/model_metadata.json
+      - name: test-data
+        path: /tmp/test_data.csv
+    outputs:
+      artifacts:
+      - name: evaluation-report
+        path: /tmp/evaluation/evaluation_report.json
+      - name: model-registry
+        path: /tmp/model_registry
+      - name: deployment-status
+        path: /tmp/deployment_status.json
+    volumes:
+    - name: output-artifacts
+      emptyDir: {}
+
+  # Global pipeline configuration
+  serviceAccountName: pipeline-runner
+  ttlStrategy:
+    secondsAfterCompletion: 86400
+  activeDeadlineSeconds: 3600

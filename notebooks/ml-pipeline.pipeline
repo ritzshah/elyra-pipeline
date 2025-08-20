@@ -26,14 +26,6 @@
                 {
                   "env_var": "EXPERIMENT_NAME",
                   "value": "elyra_ml_demo"
-                },
-                {
-                  "env_var": "ELYRA_BOOTSTRAP_SCRIPT_URL",
-                  "value": "https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/elyra/kfp/bootstrapper.py"
-                },
-                {
-                  "env_var": "ELYRA_REQUIREMENTS_URL",
-                  "value": "https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/etc/generic/requirements-elyra.txt"
                 }
               ],
               "kubernetes_pod_annotations": [],
@@ -104,14 +96,6 @@
                 {
                   "env_var": "CROSS_VALIDATION_FOLDS",
                   "value": "5"
-                },
-                {
-                  "env_var": "ELYRA_BOOTSTRAP_SCRIPT_URL",
-                  "value": "https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/elyra/kfp/bootstrapper.py"
-                },
-                {
-                  "env_var": "ELYRA_REQUIREMENTS_URL",
-                  "value": "https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/etc/generic/requirements-elyra.txt"
                 }
               ],
               "kubernetes_pod_annotations": [],
@@ -184,14 +168,6 @@
                 {
                   "env_var": "PERFORMANCE_THRESHOLD",
                   "value": "0.8"
-                },
-                {
-                  "env_var": "ELYRA_BOOTSTRAP_SCRIPT_URL",
-                  "value": "https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/elyra/kfp/bootstrapper.py"
-                },
-                {
-                  "env_var": "ELYRA_REQUIREMENTS_URL",
-                  "value": "https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/etc/generic/requirements-elyra.txt"
                 }
               ],
               "kubernetes_pod_annotations": [],
@@ -267,9 +243,10 @@
             "env_vars": [
               {"env_var": "ELYRA_ENABLE_PIPELINE_INFO", "value": "true"},
               {"env_var": "ELYRA_WRITABLE_CONTAINER_DIR", "value": "/tmp"},
-              {"env_var": "ELYRA_RUN_NAME", "value": "elyra-ml-demo"}
+              {"env_var": "ELYRA_RUN_NAME", "value": "elyra-ml-demo"},
+              {"env_var": "ELYRA_EXECUTOR_TYPE", "value": "kfp"}
             ],
-            "runtime_image": "quay.io/modh/runtime-images:runtime-datascience-ubi9-python-3.9-2023c"
+            "runtime_image": "quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016"
           }
         }
       },

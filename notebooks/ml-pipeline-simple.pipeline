@@ -1,0 +1,105 @@
+{
+  "doc_type": "pipeline",
+  "version": "3.0",
+  "json_schema": "http://api.dataplatform.ibm.com/schemas/common-pipeline/pipeline-flow/pipeline-flow-v3-schema.json",
+  "id": "elyra-ml-demo-simple-pipeline",
+  "primary_pipeline": "primary",
+  "pipelines": [
+    {
+      "id": "primary",
+      "nodes": [
+        {
+          "id": "data-preparation-node",
+          "type": "execution_node",
+          "op": "execute-python-node",
+          "app_data": {
+            "component_parameters": {
+              "dependencies": [],
+              "include_subdirectories": false,
+              "outputs": [
+                "train_data.csv",
+                "test_data.csv",
+                "data_quality_report.json"
+              ],
+              "env_vars": [
+                {
+                  "env_var": "EXPERIMENT_NAME",
+                  "value": "elyra_ml_demo"
+                }
+              ],
+              "kubernetes_pod_annotations": [],
+              "kubernetes_pod_labels": [],
+              "kubernetes_secrets": [],
+              "kubernetes_shared_mem_size": {},
+              "kubernetes_tolerations": [],
+              "mounted_volumes": [],
+              "filename": "data_preparation.py"
+            },
+            "label": "data-preparation",
+            "ui_data": {
+              "label": "Data Preparation",
+              "image": "/notebook/static/elyra/python.svg",
+              "x_pos": 100,
+              "y_pos": 100,
+              "description": "Load, clean, and prepare data for model training"
+            }
+          },
+          "inputs": [
+            {
+              "id": "inPort",
+              "app_data": {
+                "ui_data": {
+                  "cardinality": {
+                    "min": 0,
+                    "max": -1
+                  },
+                  "label": "Input Port"
+                }
+              }
+            }
+          ],
+          "outputs": [
+            {
+              "id": "outPort",
+              "app_data": {
+                "ui_data": {
+                  "cardinality": {
+                    "min": 0,
+                    "max": -1
+                  },
+                  "label": "Output Port"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "app_data": {
+        "ui_data": {
+          "comments": []
+        },
+        "version": 8,
+        "runtime_type": "KUBEFLOW_PIPELINES",
+        "properties": {
+          "name": "elyra-ml-demo-simple-pipeline",
+          "runtime": "Data Science Pipelines",
+          "pipeline_defaults": {
+            "kubernetes_shared_mem_size": {},
+            "kubernetes_pod_labels": [],
+            "mounted_volumes": [],
+            "kubernetes_tolerations": [],
+            "kubernetes_pod_annotations": [],
+            "kubernetes_secrets": [],
+            "env_vars": [
+              {"env_var": "ELYRA_ENABLE_PIPELINE_INFO", "value": "true"},
+              {"env_var": "ELYRA_WRITABLE_CONTAINER_DIR", "value": "/tmp"}
+            ],
+            "runtime_image": "quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016"
+          }
+        }
+      },
+      "runtime_ref": ""
+    }
+  ],
+  "schemas": []
+}

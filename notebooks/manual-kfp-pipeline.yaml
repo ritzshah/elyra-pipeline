@@ -1,0 +1,363 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: elyra-ml-demo-manual-
+  annotations:
+    pipelines.kubeflow.org/kfp_sdk_version: 2.0.0
+    pipelines.kubeflow.org/pipeline_compilation_time: '2024-08-20T07:00:00'
+    pipelines.kubeflow.org/pipeline_spec: |
+      {
+        "pipelineInfo": {"name": "elyra-ml-demo-manual"},
+        "root": {
+          "dag": {
+            "tasks": {
+              "data-preparation": {
+                "cachingOptions": {"enableCache": true},
+                "componentRef": {"name": "comp-data-preparation"},
+                "taskInfo": {"name": "data-preparation"}
+              },
+              "model-training": {
+                "cachingOptions": {"enableCache": true},
+                "componentRef": {"name": "comp-model-training"},
+                "dependentTasks": ["data-preparation"],
+                "taskInfo": {"name": "model-training"}
+              },
+              "model-evaluation": {
+                "cachingOptions": {"enableCache": true},
+                "componentRef": {"name": "comp-model-evaluation"},
+                "dependentTasks": ["model-training"],
+                "taskInfo": {"name": "model-evaluation"}
+              }
+            }
+          }
+        },
+        "components": {
+          "comp-data-preparation": {"executorLabel": "exec-data-preparation"},
+          "comp-model-training": {"executorLabel": "exec-model-training"},
+          "comp-model-evaluation": {"executorLabel": "exec-model-evaluation"}
+        },
+        "deploymentSpec": {
+          "executors": {
+            "exec-data-preparation": {
+              "container": {
+                "image": "quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016",
+                "command": ["python3", "-c"],
+                "args": ["import pandas as pd; import numpy as np; from sklearn.model_selection import train_test_split; from sklearn.preprocessing import StandardScaler, LabelEncoder; import joblib; import os; import json; print('Starting data preparation...'); np.random.seed(42); n_samples = 1000; data = {'feature1': np.random.normal(0, 1, n_samples), 'feature2': np.random.normal(2, 1.5, n_samples), 'feature3': np.random.uniform(0, 10, n_samples), 'category': np.random.choice(['A', 'B', 'C'], n_samples), 'target': np.random.choice([0, 1], n_samples)}; df = pd.DataFrame(data); print(f'Data shape: {df.shape}'); categorical_columns = [col for col in df.select_dtypes(include=['object']).columns if col != 'target']; label_encoders = {}; [label_encoders.update({column: LabelEncoder().fit(df[column])}) or df.update({column: label_encoders[column].transform(df[column])}) for column in categorical_columns]; numerical_columns = [col for col in df.select_dtypes(include=[np.number]).columns if col != 'target']; scaler = StandardScaler(); df[numerical_columns] = scaler.fit_transform(df[numerical_columns]); X = df.drop('target', axis=1); y = df['target']; X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y); train_df = pd.concat([X_train, y_train], axis=1); test_df = pd.concat([X_test, y_test], axis=1); os.makedirs('/tmp/outputs', exist_ok=True); train_df.to_csv('/tmp/outputs/train_data.csv', index=False); test_df.to_csv('/tmp/outputs/test_data.csv', index=False); joblib.dump(scaler, '/tmp/outputs/scaler.pkl'); joblib.dump(label_encoders, '/tmp/outputs/label_encoders.pkl'); report = {'train_shape': list(train_df.shape), 'test_shape': list(test_df.shape), 'features': list(X_train.columns)}; json.dump(report, open('/tmp/outputs/data_quality_report.json', 'w'), indent=2); print('Data preparation completed successfully!'); print(f'Train data: {train_df.shape}'); print(f'Test data: {test_df.shape}'); print(f'Files saved to /tmp/outputs/')"]
+              }
+            },
+            "exec-model-training": {
+              "container": {
+                "image": "quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016",
+                "command": ["python3", "-c"],
+                "args": ["import pandas as pd; import numpy as np; import joblib; import json; import os; from sklearn.ensemble import RandomForestClassifier; from sklearn.linear_model import LogisticRegression; from sklearn.model_selection import GridSearchCV; from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score; from datetime import datetime; print('Starting model training...'); print('Loading data...'); train_df = pd.read_csv('/tmp/inputs/train_data.csv'); test_df = pd.read_csv('/tmp/inputs/test_data.csv'); X_train = train_df.drop('target', axis=1); y_train = train_df['target']; X_test = test_df.drop('target', axis=1); y_test = test_df['target']; print(f'Training data shape: {X_train.shape}'); print(f'Test data shape: {X_test.shape}'); models = {'logistic_regression': {'model': LogisticRegression(random_state=42, max_iter=1000), 'params': {'C': [0.1, 1.0]}}, 'random_forest': {'model': RandomForestClassifier(random_state=42), 'params': {'n_estimators': [50, 100]}}}; results = {}; trained_models = {}; [print(f'Training {model_name}...') or results.update({model_name: {'accuracy': float(accuracy_score(y_test, (lambda m: m.fit(X_train, y_train) or m.predict(X_test))(GridSearchCV(config['model'], config['params'], cv=3, scoring='f1', n_jobs=-1).fit(X_train, y_train).best_estimator_))), 'f1_score': float(f1_score(y_test, (lambda m: m.fit(X_train, y_train) or m.predict(X_test))(GridSearchCV(config['model'], config['params'], cv=3, scoring='f1', n_jobs=-1).fit(X_train, y_train).best_estimator_)))}}) or trained_models.update({model_name: GridSearchCV(config['model'], config['params'], cv=3, scoring='f1', n_jobs=-1).fit(X_train, y_train).best_estimator_}) for model_name, config in models.items()]; best_model_name = max(results.keys(), key=lambda x: results[x]['f1_score']); best_model = trained_models[best_model_name]; best_score = results[best_model_name]['f1_score']; print(f'Best model: {best_model_name} (F1: {best_score:.4f})'); os.makedirs('/tmp/outputs', exist_ok=True); joblib.dump(best_model, '/tmp/outputs/best_model.pkl'); metadata = {'timestamp': datetime.now().isoformat(), 'best_model': best_model_name, 'best_score': float(best_score), 'results': results}; json.dump(metadata, open('/tmp/outputs/model_metadata.json', 'w'), indent=2); print('Model training completed successfully!')"]
+              }
+            },
+            "exec-model-evaluation": {
+              "container": {
+                "image": "quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016",
+                "command": ["python3", "-c"],
+                "args": ["import pandas as pd; import numpy as np; import joblib; import json; import os; from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix; from datetime import datetime; print('Starting model evaluation...'); print('Loading model and data...'); model = joblib.load('/tmp/inputs/best_model.pkl'); test_df = pd.read_csv('/tmp/inputs/test_data.csv'); metadata = json.load(open('/tmp/inputs/model_metadata.json', 'r')); X_test = test_df.drop('target', axis=1); y_test = test_df['target']; print(f'Evaluating model: {metadata[\"best_model\"]}'); y_pred = model.predict(X_test); y_pred_proba = model.predict_proba(X_test)[:, 1]; metrics = {'accuracy': float(accuracy_score(y_test, y_pred)), 'precision': float(precision_score(y_test, y_pred)), 'recall': float(recall_score(y_test, y_pred)), 'f1_score': float(f1_score(y_test, y_pred)), 'roc_auc': float(roc_auc_score(y_test, y_pred_proba))}; cm = confusion_matrix(y_test, y_pred); performance_threshold = 0.8; validation = {'meets_threshold': metrics['f1_score'] >= performance_threshold, 'deployment_status': 'APPROVED' if metrics['f1_score'] >= performance_threshold else 'REQUIRES_IMPROVEMENT'}; report = {'evaluation_summary': {'timestamp': datetime.now().isoformat(), 'model_type': metadata['best_model'], 'status': validation['deployment_status']}, 'performance_metrics': metrics, 'confusion_matrix': cm.tolist(), 'validation_results': validation}; os.makedirs('/tmp/outputs', exist_ok=True); json.dump(report, open('/tmp/outputs/evaluation_report.json', 'w'), indent=2); print('=' * 50); print('MODEL EVALUATION SUMMARY'); print('=' * 50); print(f'Model Type: {metadata[\"best_model\"]}'); print(f'F1 Score: {metrics[\"f1_score\"]:.4f}'); print(f'Accuracy: {metrics[\"accuracy\"]:.4f}'); print(f'ROC AUC: {metrics[\"roc_auc\"]:.4f}'); print(f'Deployment Status: {validation[\"deployment_status\"]}'); print(f'Production Ready: {\"Yes\" if validation[\"meets_threshold\"] else \"No\"}'); print('=' * 50); print('Model evaluation completed successfully!')"]
+              }
+            }
+          }
+        },
+        "schemaVersion": "2.1.0",
+        "sdkVersion": "kfp-2.0.0"
+      }
+  labels:
+    pipelines.kubeflow.org/kfp_sdk_version: 2.0.0
+spec:
+  entrypoint: elyra-ml-demo-manual
+  templates:
+  - name: elyra-ml-demo-manual
+    dag:
+      tasks:
+      - name: data-preparation
+        template: data-preparation
+      - name: model-training
+        template: model-training
+        dependencies: [data-preparation]
+      - name: model-evaluation
+        template: model-evaluation
+        dependencies: [model-training]
+
+  - name: data-preparation
+    container:
+      image: quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016
+      command: [python3, -c]
+      args:
+      - |
+        import pandas as pd
+        import numpy as np
+        from sklearn.model_selection import train_test_split
+        from sklearn.preprocessing import StandardScaler, LabelEncoder
+        import joblib
+        import os
+        import json
+        
+        print("Starting data preparation...")
+        
+        # Create sample data
+        np.random.seed(42)
+        n_samples = 1000
+        data = {
+            'feature1': np.random.normal(0, 1, n_samples),
+            'feature2': np.random.normal(2, 1.5, n_samples),
+            'feature3': np.random.uniform(0, 10, n_samples),
+            'category': np.random.choice(['A', 'B', 'C'], n_samples),
+            'target': np.random.choice([0, 1], n_samples)
+        }
+        df = pd.DataFrame(data)
+        print(f"Data shape: {df.shape}")
+        
+        # Preprocessing
+        categorical_columns = [col for col in df.select_dtypes(include=['object']).columns if col != 'target']
+        label_encoders = {}
+        for column in categorical_columns:
+            le = LabelEncoder()
+            df[column] = le.fit_transform(df[column])
+            label_encoders[column] = le
+        
+        numerical_columns = [col for col in df.select_dtypes(include=[np.number]).columns if col != 'target']
+        scaler = StandardScaler()
+        df[numerical_columns] = scaler.fit_transform(df[numerical_columns])
+        
+        # Train-test split
+        X = df.drop('target', axis=1)
+        y = df['target']
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+        
+        train_df = pd.concat([X_train, y_train], axis=1)
+        test_df = pd.concat([X_test, y_test], axis=1)
+        
+        # Save outputs
+        os.makedirs('/tmp/outputs', exist_ok=True)
+        train_df.to_csv('/tmp/outputs/train_data.csv', index=False)
+        test_df.to_csv('/tmp/outputs/test_data.csv', index=False)
+        joblib.dump(scaler, '/tmp/outputs/scaler.pkl')
+        joblib.dump(label_encoders, '/tmp/outputs/label_encoders.pkl')
+        
+        # Quality report
+        report = {
+            'train_shape': list(train_df.shape),
+            'test_shape': list(test_df.shape),
+            'features': list(X_train.columns)
+        }
+        with open('/tmp/outputs/data_quality_report.json', 'w') as f:
+            json.dump(report, f, indent=2)
+        
+        print("Data preparation completed successfully!")
+        print(f"Train data: {train_df.shape}")
+        print(f"Test data: {test_df.shape}")
+        print("Files saved to /tmp/outputs/")
+      workingDir: /tmp
+    outputs:
+      artifacts:
+      - name: train-data
+        path: /tmp/outputs/train_data.csv
+      - name: test-data
+        path: /tmp/outputs/test_data.csv
+      - name: scaler
+        path: /tmp/outputs/scaler.pkl
+      - name: encoders
+        path: /tmp/outputs/label_encoders.pkl
+      - name: quality-report
+        path: /tmp/outputs/data_quality_report.json
+
+  - name: model-training
+    container:
+      image: quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016
+      command: [python3, -c]
+      args:
+      - |
+        import pandas as pd
+        import numpy as np
+        import joblib
+        import json
+        import os
+        from sklearn.ensemble import RandomForestClassifier
+        from sklearn.linear_model import LogisticRegression
+        from sklearn.model_selection import GridSearchCV
+        from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+        from datetime import datetime
+        
+        print("Starting model training...")
+        
+        # Load data from previous step
+        print("Loading data...")
+        train_df = pd.read_csv('/tmp/inputs/train_data.csv')
+        test_df = pd.read_csv('/tmp/inputs/test_data.csv')
+        
+        X_train = train_df.drop('target', axis=1)
+        y_train = train_df['target']
+        X_test = test_df.drop('target', axis=1)
+        y_test = test_df['target']
+        
+        print(f"Training data shape: {X_train.shape}")
+        print(f"Test data shape: {X_test.shape}")
+        
+        # Define models
+        models = {
+            'logistic_regression': {
+                'model': LogisticRegression(random_state=42, max_iter=1000),
+                'params': {'C': [0.1, 1.0]}
+            },
+            'random_forest': {
+                'model': RandomForestClassifier(random_state=42),
+                'params': {'n_estimators': [50, 100]}
+            }
+        }
+        
+        # Train models
+        results = {}
+        trained_models = {}
+        
+        for model_name, config in models.items():
+            print(f"Training {model_name}...")
+            grid_search = GridSearchCV(config['model'], config['params'], cv=3, scoring='f1', n_jobs=-1)
+            grid_search.fit(X_train, y_train)
+            best_model = grid_search.best_estimator_
+            
+            y_pred = best_model.predict(X_test)
+            y_pred_proba = best_model.predict_proba(X_test)[:, 1]
+            
+            metrics = {
+                'accuracy': float(accuracy_score(y_test, y_pred)),
+                'precision': float(precision_score(y_test, y_pred)),
+                'recall': float(recall_score(y_test, y_pred)),
+                'f1_score': float(f1_score(y_test, y_pred)),
+                'roc_auc': float(roc_auc_score(y_test, y_pred_proba))
+            }
+            
+            results[model_name] = metrics
+            trained_models[model_name] = best_model
+            print(f"{model_name} - F1 Score: {metrics['f1_score']:.4f}")
+        
+        # Select best model
+        best_model_name = max(results.keys(), key=lambda x: results[x]['f1_score'])
+        best_model = trained_models[best_model_name]
+        best_score = results[best_model_name]['f1_score']
+        
+        print(f"Best model: {best_model_name} (F1: {best_score:.4f})")
+        
+        # Save outputs
+        os.makedirs('/tmp/outputs', exist_ok=True)
+        joblib.dump(best_model, '/tmp/outputs/best_model.pkl')
+        
+        metadata = {
+            'timestamp': datetime.now().isoformat(),
+            'best_model': best_model_name,
+            'best_score': float(best_score),
+            'results': results
+        }
+        with open('/tmp/outputs/model_metadata.json', 'w') as f:
+            json.dump(metadata, f, indent=2)
+        
+        print("Model training completed successfully!")
+      workingDir: /tmp
+    inputs:
+      artifacts:
+      - name: train-data
+        path: /tmp/inputs/train_data.csv
+      - name: test-data
+        path: /tmp/inputs/test_data.csv
+    outputs:
+      artifacts:
+      - name: best-model
+        path: /tmp/outputs/best_model.pkl
+      - name: model-metadata
+        path: /tmp/outputs/model_metadata.json
+
+  - name: model-evaluation
+    container:
+      image: quay.io/opendatahub/workbench-images:jupyter-datascience-ubi9-python-3.9-2023b-20231016
+      command: [python3, -c]
+      args:
+      - |
+        import pandas as pd
+        import numpy as np
+        import joblib
+        import json
+        import os
+        from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix
+        from datetime import datetime
+        
+        print("Starting model evaluation...")
+        
+        # Load model and data
+        print("Loading model and data...")
+        model = joblib.load('/tmp/inputs/best_model.pkl')
+        test_df = pd.read_csv('/tmp/inputs/test_data.csv')
+        
+        with open('/tmp/inputs/model_metadata.json', 'r') as f:
+            metadata = json.load(f)
+        
+        X_test = test_df.drop('target', axis=1)
+        y_test = test_df['target']
+        
+        print(f"Evaluating model: {metadata['best_model']}")
+        
+        # Make predictions
+        y_pred = model.predict(X_test)
+        y_pred_proba = model.predict_proba(X_test)[:, 1]
+        
+        # Calculate metrics
+        metrics = {
+            'accuracy': float(accuracy_score(y_test, y_pred)),
+            'precision': float(precision_score(y_test, y_pred)),
+            'recall': float(recall_score(y_test, y_pred)),
+            'f1_score': float(f1_score(y_test, y_pred)),
+            'roc_auc': float(roc_auc_score(y_test, y_pred_proba))
+        }
+        
+        cm = confusion_matrix(y_test, y_pred)
+        
+        # Performance validation
+        performance_threshold = 0.8
+        validation = {
+            'meets_threshold': metrics['f1_score'] >= performance_threshold,
+            'deployment_status': 'APPROVED' if metrics['f1_score'] >= performance_threshold else 'REQUIRES_IMPROVEMENT'
+        }
+        
+        # Generate report
+        report = {
+            'evaluation_summary': {
+                'timestamp': datetime.now().isoformat(),
+                'model_type': metadata['best_model'],
+                'status': validation['deployment_status']
+            },
+            'performance_metrics': metrics,
+            'confusion_matrix': cm.tolist(),
+            'validation_results': validation
+        }
+        
+        # Save output
+        os.makedirs('/tmp/outputs', exist_ok=True)
+        with open('/tmp/outputs/evaluation_report.json', 'w') as f:
+            json.dump(report, f, indent=2)
+        
+        # Print summary
+        print("=" * 50)
+        print("MODEL EVALUATION SUMMARY")
+        print("=" * 50)
+        print(f"Model Type: {metadata['best_model']}")
+        print(f"F1 Score: {metrics['f1_score']:.4f}")
+        print(f"Accuracy: {metrics['accuracy']:.4f}")
+        print(f"ROC AUC: {metrics['roc_auc']:.4f}")
+        print(f"Deployment Status: {validation['deployment_status']}")
+        print(f"Production Ready: {'Yes' if validation['meets_threshold'] else 'No'}")
+        print("=" * 50)
+        print("Model evaluation completed successfully!")
+      workingDir: /tmp
+    inputs:
+      artifacts:
+      - name: best-model
+        path: /tmp/inputs/best_model.pkl
+      - name: model-metadata
+        path: /tmp/inputs/model_metadata.json
+      - name: test-data
+        path: /tmp/inputs/test_data.csv
+    outputs:
+      artifacts:
+      - name: evaluation-report
+        path: /tmp/outputs/evaluation_report.json

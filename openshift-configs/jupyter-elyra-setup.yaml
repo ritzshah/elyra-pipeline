@@ -246,11 +246,11 @@ data:
       "cpu_request": "100m",
       "memory_request": "512Mi",
       "env_vars": [
-        {"name": "ELYRA_ENABLE_PIPELINE_INFO", "value": "true"},
-        {"name": "ELYRA_WRITABLE_CONTAINER_DIR", "value": "/tmp"},
-        {"name": "ELYRA_RUN_NAME", "value": "{{workflow.name}}"},
-        {"name": "ELYRA_BOOTSTRAP_SCRIPT_URL", "value": "https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/elyra/kfp/bootstrapper.py"},
-        {"name": "ELYRA_REQUIREMENTS_URL", "value": "https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/etc/generic/requirements-elyra.txt"}
+        {"env_var": "ELYRA_ENABLE_PIPELINE_INFO", "value": "true"},
+        {"env_var": "ELYRA_WRITABLE_CONTAINER_DIR", "value": "/tmp"},
+        {"env_var": "ELYRA_RUN_NAME", "value": "{{workflow.name}}"},
+        {"env_var": "ELYRA_BOOTSTRAP_SCRIPT_URL", "value": "https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/elyra/kfp/bootstrapper.py"},
+        {"env_var": "ELYRA_REQUIREMENTS_URL", "value": "https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/etc/generic/requirements-elyra.txt"}
       ],
       "volumes": [],
       "kubernetes_secrets": [],

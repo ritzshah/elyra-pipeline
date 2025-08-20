@@ -265,9 +265,9 @@
             "kubernetes_pod_annotations": [],
             "kubernetes_secrets": [],
             "env_vars": [
-              {"name": "ELYRA_ENABLE_PIPELINE_INFO", "value": "true"},
-              {"name": "ELYRA_WRITABLE_CONTAINER_DIR", "value": "/tmp"},
-              {"name": "ELYRA_RUN_NAME", "value": "elyra-ml-demo"}
+              {"env_var": "ELYRA_ENABLE_PIPELINE_INFO", "value": "true"},
+              {"env_var": "ELYRA_WRITABLE_CONTAINER_DIR", "value": "/tmp"},
+              {"env_var": "ELYRA_RUN_NAME", "value": "elyra-ml-demo"}
             ],
             "runtime_image": "quay.io/modh/runtime-images:runtime-datascience-ubi9-python-3.9-2023c"
           }

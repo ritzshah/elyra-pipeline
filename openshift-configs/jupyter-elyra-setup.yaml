@@ -247,12 +247,16 @@ data:
       "memory_request": "512Mi",
       "env_vars": [
         {"name": "ELYRA_ENABLE_PIPELINE_INFO", "value": "true"},
-        {"name": "ELYRA_WRITABLE_CONTAINER_DIR", "value": "/tmp"}
+        {"name": "ELYRA_WRITABLE_CONTAINER_DIR", "value": "/tmp"},
+        {"name": "ELYRA_RUN_NAME", "value": "{{workflow.name}}"},
+        {"name": "ELYRA_BOOTSTRAP_SCRIPT_URL", "value": "https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/elyra/kfp/bootstrapper.py"},
+        {"name": "ELYRA_REQUIREMENTS_URL", "value": "https://raw.githubusercontent.com/elyra-ai/elyra/v3.15.0/etc/generic/requirements-elyra.txt"}
       ],
       "volumes": [],
       "kubernetes_secrets": [],
       "kubernetes_tolerations": [],
-      "kubernetes_pod_annotations": {}
+      "kubernetes_pod_annotations": {},
+      "disable_node_caching": "False"
     }
   
   component_catalogs.json: |
